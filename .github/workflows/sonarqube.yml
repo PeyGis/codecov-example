@@ -8,23 +8,23 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  build:
-    name: Build
+  common:
     runs-on: ubuntu-latest
-    permissions: read-all
     steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - uses: sonarsource/sonarqube-scan-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      # If you wish to fail your job when the Quality Gate is red, uncomment the
-      # following lines. This would typically be used to fail a deployment.
-      # We do not recommend to use this in a pull request. Prefer using pull request
-      # decoration instead.
-      # - uses: sonarsource/sonarqube-quality-gate-action@master
-      #   timeout-minutes: 5
-      #   env:
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - uses: actions/checkout@v3
+
+      - name: sonar
+        run: |
+
+          wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856.zip -O /tmp/sonar-scanner.zip
+          unzip /tmp/sonar-scanner.zip -d /tmp
+          mv /tmp/sonar-scanner-* /tmp/sonar-scanner
+          rm /tmp/sonar-scanner.zip
+          export PATH="$PATH:/tmp/sonar-scanner/bin"
+
+          sonar-scanner -X \
+            -Dsonar.projectKey=PeyGis_codecov-example_AY1peb6Mrk1xYlUyyqXY \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=https://sonar.staging.internal.getport.io \
+            -Dsonar.token=sqp_4bfb467ebdfb9aa2ed3398463b9e0dffe2712ecf
