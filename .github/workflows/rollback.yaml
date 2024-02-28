@@ -54,6 +54,8 @@ jobs:
           propertyPath: 'metadata.name'
           value: v1.0.1
           commitChange: true
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
+          
       - name: Inform completion of Argocd rollback into Port
         uses: port-labs/port-github-action@v1
         with:
