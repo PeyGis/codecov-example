@@ -50,14 +50,16 @@ jobs:
       - name: Update values.yaml
         uses: fjogeleit/yaml-update-action@main
         with:
-          valueFile: 'app/deployment.yaml'
-          propertyPath: 'metadata.name'
-          value: v1.0.1
+          valueFile: '${{ github.event.inputs.deployment_path }}'
+          propertyPath: '${{ github.event.inputs.property_path }}'
+          value: '${{ github.event.inputs.image }}'
           commitChange: true
           token: ${{ secrets.MY_GITHUB_TOKEN }}
           targetBranch: main
-          updateFile: true
           masterBranchName: main
+          createPR: true
+          branch: deployment/${{ github.event.inputs.image }}
+          message: 'Update Image Version to ${{ github.event.inputs.image }}'
           
       - name: Inform completion of Argocd rollback into Port
         uses: port-labs/port-github-action@v1
