@@ -1,0 +1,57 @@
+name: Rollback ArgoCD Deployment Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: The new image to use for the rollback
+        required: true
+        type: string
+      deployment_path:
+        description: Path to where the ArgoCD deployment manifest
+        required: false
+        type: string
+      property_path:
+        description: Path to where the deployment image is specified in the deployment manifest
+        required: false
+        type: string
+      port_payload:
+        required: true
+        description: >-
+          Port's payload, including details for who triggered the action and
+          general context (blueprint, run id, etc...)
+jobs:
+  rollback-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inform execution of request to rollback deployment
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
+          logMessage: "About to escalate incident in PagerDuty..."
+
+      - name: Update Image Version in the related HelmChart values.yaml
+        uses: fjogeleit/yaml-update-action@main
+        with:
+          valueFile: "${{ github.event.inputs.deployment_path }}"
+          propertyPath: "${{ github.event.inputs.property_path }}"
+          value: "${{ github.event.inputs.image }}"
+          ##branch: deployment/${{ steps.image.outputs.version }}
+          targetBranch: main
+          createPR: true
+          message: 'Update Image Version to ${{ github.event.inputs.image }}'
+          
+
+      - name: Inform completion of Argocd rollback into Port
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
+          logMessage: "Argocd rollback was successful ✅"
