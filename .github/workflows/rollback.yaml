@@ -42,7 +42,7 @@ jobs:
           value: '${{ github.event.inputs.image }}'
           branch: deployment/${{ github.event.inputs.image }}
           targetBranch: main
-          createPR: true
+          createPR: false
           token: ${{ secrets.MY_GITHUB_TOKEN }}
           message: 'Update Image Version to ${{ github.event.inputs.image }}'
           
