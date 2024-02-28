@@ -34,8 +34,8 @@ jobs:
           runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
           logMessage: "About to escalate rollback image in argocd..."
       - uses: actions/checkout@v4
-      - name: Update Image Version in the related HelmChart values.yaml
-        uses: fjogeleit/yaml-update-action@main
+      ## - name: Update Image Version in the related HelmChart values.yaml
+      - uses: fjogeleit/yaml-update-action@main
         with:
           valueFile: '${{ github.event.inputs.deployment_path }}'
           propertyPath: '${{ github.event.inputs.property_path }}'
