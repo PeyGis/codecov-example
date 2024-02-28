@@ -32,21 +32,20 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
-          logMessage: "About to escalate incident in PagerDuty..."
+          logMessage: "About to escalate rollback image in argocd..."
 
       - name: Update Image Version in the related HelmChart values.yaml
         uses: fjogeleit/yaml-update-action@main
         with:
-          valueFile: "${{ github.event.inputs.deployment_path }}"
-          propertyPath: "${{ github.event.inputs.property_path }}"
-          value: "${{ github.event.inputs.image }}"
-          ##branch: deployment/${{ steps.image.outputs.version }}
+          valueFile: '${{ github.event.inputs.deployment_path }}'
+          propertyPath: '${{ github.event.inputs.property_path }}'
+          value: '${{ github.event.inputs.image }}'
+          branch: deployment/${{ github.event.inputs.image }}
           targetBranch: main
           createPR: true
           token: ${{ secrets.MY_GITHUB_TOKEN }}
           message: 'Update Image Version to ${{ github.event.inputs.image }}'
           
-
       - name: Inform completion of Argocd rollback into Port
         uses: port-labs/port-github-action@v1
         with:
