@@ -64,6 +64,26 @@ jobs:
       - name: Log PR Details
         run: echo 'Update Image Version to ${{ steps.create-pr.outputs.pull_request }}' 
 
+      - name: Merge Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.MY_PR_GITHUB_TOKEN }}
+          PR_URL: ${{ fromJson(steps.create-pr.outputs.pull_request).url }}
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "$PR_URL/merge")
+
+          echo "HTTP Status: $HTTP_STATUS"
+
+          # Check if HTTP_STATUS is 200 (No Content)
+          if [ $HTTP_STATUS -eq 200 ]; then
+            echo "Pull request merged successfully."
+          else
+            echo "Failed to merge PR. HTTP Status: $HTTP_STATUS"
+          fi
+          
       - name: Inform completion of Argocd rollback into Port
         uses: port-labs/port-github-action@v1
         with:
