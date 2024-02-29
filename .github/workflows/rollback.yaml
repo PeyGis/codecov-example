@@ -9,12 +9,16 @@ on:
         type: string
       deployment_path:
         description: Path to where the ArgoCD deployment manifest
-        required: false
+        required: true
         type: string
       property_path:
         description: Path to where the deployment image is specified in the deployment manifest
-        required: false
+        required: true
         type: string
+      should_merge:
+        description: Whether the created PR should be merged automatically
+        required: true
+        type: boolean
       port_payload:
         required: true
         description: >-
@@ -24,7 +28,7 @@ jobs:
   rollback-deployment:
     runs-on: ubuntu-latest
     steps:
-      - name: Inform execution of request to rollback deployment
+      - name: Inform execution of request to rollback deployment image
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
@@ -32,22 +36,11 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
-          logMessage: "About to escalate rollback image in argocd..."
-      # - uses: actions/checkout@v4
-      ## - name: Update Image Version in the related HelmChart values.yaml
-      # - uses: fjogeleit/yaml-update-action@main
-      #   with:
-      #     valueFile: '${{ github.event.inputs.deployment_path }}'
-      #     propertyPath: '${{ github.event.inputs.property_path }}'
-      #     value: '${{ github.event.inputs.image }}'
-      #     branch: deployment/${{ github.event.inputs.image }}
-      #     targetBranch: main
-      #     createPR: true
-      #     token: ${{ secrets.MY_GITHUB_TOKEN }}
-      #     message: 'Update Image Version to ${{ github.event.inputs.image }}'
+          logMessage: "About to rollback deployment image in argocd..."
 
       - uses: actions/checkout@v3
-      - name: Update values.yaml
+      - name: Create PR
+        id: create-pr
         uses: fjogeleit/yaml-update-action@main
         with:
           valueFile: '${{ github.event.inputs.deployment_path }}'
@@ -61,6 +54,53 @@ jobs:
           branch: deployment/${{ github.event.inputs.image }}
           message: 'Update Image Version to ${{ github.event.inputs.image }}'
           
+      - name: Inform Port about pull request creation status - Success
+        if: steps.create-pr.outcome == 'success'
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{ fromJson(github.event.inputs.port_payload).context.runId }}
+          logMessage: |
+            'The creation of PR was successful: ${{fromJson(steps.create-pr.outputs.pull_request).html_url}}'
+          link: '["${{fromJson(steps.create-pr.outputs.pull_request).html_url}}"]'
+      
+      - name: Inform Port about pull request creation status - Failure
+        if: steps.create-pr.outcome != 'success'
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{ fromJson(github.event.inputs.port_payload).context.runId }}
+          logMessage: |
+            The creation of PR was not successful.
+  
+      - name: Merge Pull Request
+        if: ${{ github.event.inputs.should_merge == 'true' && steps.create-pr.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.MY_PR_GITHUB_TOKEN }}
+          PR_URL: ${{ fromJson(steps.create-pr.outputs.pull_request).url }}
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "$PR_URL/merge")
+
+          echo "HTTP Status: $HTTP_STATUS"
+
+          if [ $HTTP_STATUS -eq 200 ]; then
+            echo "Pull request merged successfully."
+            echo "merge_status=successful" >> $GITHUB_ENV
+          else
+            echo "Failed to merge PR. HTTP Status: $HTTP_STATUS"
+            echo "merge_status=unsuccessful" >> $GITHUB_ENV
+          fi
+
       - name: Inform completion of Argocd rollback into Port
         uses: port-labs/port-github-action@v1
         with:
@@ -69,4 +109,4 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
-          logMessage: "Argocd rollback was successful ✅"
+          logMessage: 'Pull request merged ${{ env.merge_status }}'
