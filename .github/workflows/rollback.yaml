@@ -95,10 +95,10 @@ jobs:
 
           if [ $HTTP_STATUS -eq 200 ]; then
             echo "Pull request merged successfully."
-            echo "is_merge_successful=true" >> $GITHUB_ENV
+            echo "merge_status=successful" >> $GITHUB_ENV
           else
             echo "Failed to merge PR. HTTP Status: $HTTP_STATUS"
-            echo "is_merge_successful=false" >> $GITHUB_ENV
+            echo "merge_status=unsuccessful" >> $GITHUB_ENV
           fi
 
       - name: Inform completion of Argocd rollback into Port
@@ -109,9 +109,4 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
-          logMessage: |
-            ${{ if env.is_merge_successful == 'true' }}
-              Pull request merged successfully ✅.
-            ${{ else }}
-              Failed to merge PR
-            ${{ endif }}
+          logMessage: 'Pull request merged {{env.merge_status}'
