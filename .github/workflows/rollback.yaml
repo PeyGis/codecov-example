@@ -64,7 +64,7 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ fromJson(github.event.inputs.port_payload).context.runId }}
           logMessage: |
-            The creation of PR was successful.
+            'The creation of PR was successful: ${{fromJson(steps.create-pr.outputs.pull_request).html_url}}'
           link: '["${{fromJson(steps.create-pr.outputs.pull_request).html_url}}"]'
       
       - name: Inform Port about pull request creation status - Failure
