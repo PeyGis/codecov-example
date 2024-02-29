@@ -65,7 +65,7 @@ jobs:
           runId: ${{ fromJson(github.event.inputs.port_payload).context.runId }}
           logMessage: |
             The creation of PR was successful.
-          link: '["${{fromJson(steps.create-pr.outputs.pull_request).url}}"]'
+          link: '["${{fromJson(steps.create-pr.outputs.pull_request).html_url}}"]'
       
       - name: Inform Port about pull request creation status - Failure
         if: steps.create-pr.outcome != 'success'
@@ -109,4 +109,4 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
-          logMessage: 'Pull request merged {{env.merge_status}'
+          logMessage: 'Pull request merged ${{ env.merge_status }}'
