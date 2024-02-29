@@ -102,6 +102,7 @@ jobs:
           fi
 
       - name: Inform completion of Argocd rollback into Port
+        if: ${{ github.event.inputs.should_merge == 'true' }}
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
@@ -109,4 +110,4 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
-          logMessage: 'Pull request merged ${{ env.merge_status }}'
+          logMessage: 'Pull request merge was ${{ env.merge_status }}'
