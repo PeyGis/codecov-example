@@ -54,7 +54,8 @@ jobs:
           branch: deployment/${{ github.event.inputs.image }}
           message: 'Update Image Version to ${{ github.event.inputs.image }}'
           
-      - name: Inform Port about pull request creation status
+      - name: Inform Port about pull request creation status - Success
+        if: steps.create-pr.outcome == 'success'
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
@@ -63,12 +64,20 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ fromJson(github.event.inputs.port_payload).context.runId }}
           logMessage: |
-            ${{ if eq(steps.create-pr.outcome, 'success') }}
-              The creation of PR was successful.
-            ${{ else }}
-              The creation of PR was not successful.
-            ${{ endif }}
+            The creation of PR was successful.
           link: '["${{fromJson(steps.create-pr.outputs.pull_request).url}}"]'
+      
+      - name: Inform Port about pull request creation status - Failure
+        if: steps.create-pr.outcome != 'success'
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{ fromJson(github.event.inputs.port_payload).context.runId }}
+          logMessage: |
+            The creation of PR was not successful.
   
       - name: Merge Pull Request
         if: ${{ github.event.inputs.should_merge == 'true' && steps.create-pr.outcome == 'success' }}
