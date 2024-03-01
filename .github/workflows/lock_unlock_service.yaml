@@ -37,7 +37,7 @@ jobs:
           properties: |-
             {
               "locked_in_prod": true,
-              "locked_reason_prod": ${{ github.event.inputs.reason }}
+              "locked_reason_prod": "${{ github.event.inputs.reason }}"
             }
           relations: "{}"
           clientId: ${{ secrets.PORT_CLIENT_ID }}
