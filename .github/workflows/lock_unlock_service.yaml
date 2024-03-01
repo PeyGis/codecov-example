@@ -1,0 +1,57 @@
+name: Lock or Unlock a Service
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: string
+        required: true
+      reason:
+        type: string
+        required: true
+      port_payload:
+        required: true
+        description: Port's payload, including details for who triggered the action and
+          general context (blueprint, run id, etc...)
+        type: string
+jobs:
+  lock-service-in-port:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inform execution of request to lock service in Port
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
+          logMessage: "About to lock a service in ${{ github.event.inputs.environment }} ..."
+          
+      - name: Lock Service in Production
+        if: ${{ github.event.inputs.environment == 'Production' }}
+        uses: port-labs/port-github-action@v1
+        with:
+          identifier: ${{ fromJson(github.event.inputs.port_payload).context.entity }}
+          title: ${{ fromJson(github.event.inputs.port_payload).payload.entity.title }}
+          blueprint: ${{ fromJson(github.event.inputs.port_payload).context.blueprint }}
+          properties: |-
+            {
+              "locked_in_prod": true,
+              "locked_reason_prod": ${{ github.event.inputs.reason }}
+            }
+          relations: "{}"
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: UPSERT
+          runId: ${{fromJson(inputs.port_payload).context.runId}}
+
+      - name: Inform completion of service locking in Port
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).context.runId}}
+          logMessage: Successfully locked service in Port
