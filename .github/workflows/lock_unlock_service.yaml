@@ -90,7 +90,7 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
-          logMessage: "The lock operation has been completed successfully and details is being sent to Slack. The outcome of the Slack announcement is ${{ steps.slack.outcome }}"
+          logMessage: "The lock operation has been completed successfully and the details is being broadcasted to Slack. The outcome of the Slack announcement is ${{ steps.slack.outcome }}"
           
       - name: Inform unsuccessful service locking in Port
         if: ${{ steps.lock-prod-service.outcome != 'success' || steps.lock-test-service.outcome != 'success' }}
