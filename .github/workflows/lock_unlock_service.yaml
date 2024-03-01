@@ -57,10 +57,21 @@ jobs:
           # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
           channel-id: 'C06KE3PT2BX'
           # For posting a simple plain text message
-          slack-message: "Port Service with identifier: ${{ fromJson(github.event.inputs.port_payload).context.entity }} has been locked in production by ${{ fromJson(github.event.inputs.port_payload).trigger.by.firstName }} . \nThe reason for locking is defined as ${{ github.event.inputs.reason }} "
+          slack-message: "Hello @here, our *${{ fromJson(github.event.inputs.port_payload).payload.entity.title }}* service in Port has been locked in production by ${{ fromJson(github.event.inputs.port_payload).trigger.by.user.email }}. \nThe reason for locking is defined as *${{ github.event.inputs.reason }}*"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
+      - name: Inform Port about outcome of sending slack alert
+        if: ${{ steps.lock-prod-service.outcome == 'success'}}
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
+          logMessage: "This action is being sent to Slack and the operation is ${{ steps.slack.outcome }}"
+          
       - name: Inform completion of service locking in Port
         uses: port-labs/port-github-action@v1
         with:
