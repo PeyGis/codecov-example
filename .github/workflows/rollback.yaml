@@ -51,7 +51,7 @@ jobs:
           targetBranch: main
           masterBranchName: main
           createPR: true
-          branch: deployment/${{ github.event.inputs.image }}
+          branch: deployment/${{ fromJson(github.event.inputs.port_payload).context.runId }}
           message: 'Update Image Version to ${{ github.event.inputs.image }}'
           
       - name: Inform Port about pull request creation status - Success
