@@ -93,7 +93,7 @@ jobs:
           logMessage: "The lock operation has been completed successfully and the details is being broadcasted to Slack. The outcome of the Slack announcement is ${{ steps.slack.outcome }}"
           
       - name: Inform unsuccessful service locking in Port
-        if: ${{ steps.lock-prod-service.outcome != 'success' && steps.lock-prod-service.outcome != 'failure' || steps.lock-test-service.outcome != 'success' && steps.lock-test-service.outcome != 'failure' }}
+        if: ${{ (steps.lock-prod-service.outcome != 'success' && steps.lock-prod-service.outcome != 'failure') || (steps.lock-test-service.outcome != 'success' && steps.lock-test-service.outcome != 'failure') }}
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
