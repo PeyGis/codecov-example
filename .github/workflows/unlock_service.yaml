@@ -73,7 +73,7 @@ jobs:
         uses: slackapi/slack-github-action@v1.25.0
         with:
           channel-id: 'C06KE3PT2BX' ## replace this value with your Slack channel ID
-          slack-message: "*Port Service Unlock Update*\n\n*Service Name*: ${{ fromJson(github.event.inputs.port_payload).payload.entity.title }}\n*Environment*: ${{ github.event.inputs.environment }}\n*Reporter*: ${{ fromJson(github.event.inputs.port_payload).trigger.by.user.email }}.\n*Reason*: ${{ github.event.inputs.reason }}"
+          slack-message: "*Port Service Unlocked*\n\n*Service Name*: ${{ fromJson(github.event.inputs.port_payload).payload.entity.title }}\n*Environment*: ${{ github.event.inputs.environment }}\n*Reporter*: ${{ fromJson(github.event.inputs.port_payload).trigger.by.user.email }}.\n*Reason*: ${{ github.event.inputs.reason }}"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
