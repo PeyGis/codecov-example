@@ -25,7 +25,7 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
-          logMessage: "About to lock a service in ${{ github.event.inputs.environment }} ..."
+          logMessage: "About to lock a service in ${{ github.event.inputs.environment }} environment ..."
           
       - name: Lock Service in Production
         id: lock-prod-service
@@ -77,7 +77,7 @@ jobs:
           # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
           channel-id: 'C06KE3PT2BX'
           # For posting a simple plain text message
-          slack-message: "Hello @here our *${{ fromJson(github.event.inputs.port_payload).payload.entity.title }}* service in Port has been locked in *${{ github.event.inputs.environment }}* by ${{ fromJson(github.event.inputs.port_payload).trigger.by.user.email }}. \nThe reason for locking is defined as *${{ github.event.inputs.reason }}*"
+          slack-message: "Hello @channel one of our services in Port has been locked. Find details below\nService Name: *${{ fromJson(github.event.inputs.port_payload).payload.entity.title }}*\nEnvironment: *${{ github.event.inputs.environment }}*\nReporter: ${{ fromJson(github.event.inputs.port_payload).trigger.by.user.email }}.\nReason: *${{ github.event.inputs.reason }}*"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
