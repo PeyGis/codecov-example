@@ -89,7 +89,7 @@ jobs:
           logMessage: "The unlock operation has been completed successfully and the details is being broadcasted to Slack. The outcome of the Slack announcement is ${{ steps.slack.outcome }}"
           
       - name: Inform unsuccessful service unlocking in Port
-        if: ${{ (steps.unlock-prod-service.outcome != 'success' && steps.unlock-prod-service.outcome != 'skipped') || (steps.lock-test-service.outcome != 'success' && steps.lock-test-service.outcome != 'skipped') }}
+        if: ${{ (steps.unlock-prod-service.outcome != 'success' && steps.unlock-prod-service.outcome != 'skipped') || (steps.unlock-test-service.outcome != 'success' && steps.unlock-test-service.outcome != 'skipped') }}
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
