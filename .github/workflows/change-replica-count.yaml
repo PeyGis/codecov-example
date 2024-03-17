@@ -37,7 +37,7 @@ jobs:
         with:
           valueFile: 'app/deployment.yaml'  ## replace value
           propertyPath: 'spec.replicas' ## replace value
-          value: ${{ fromJson(github.event.inputs.replica_count) }}
+          value: 5
           commitChange: true
           token: ${{ secrets.MY_GITHUB_TOKEN }}
           targetBranch: main
