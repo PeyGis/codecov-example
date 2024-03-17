@@ -37,7 +37,7 @@ jobs:
         with:
           valueFile: 'app/deployment.yaml'  ## replace value
           propertyPath: 'spec.replicas' ## replace value
-          value: 5
+          value: "!!int '123'"
           commitChange: true
           token: ${{ secrets.MY_GITHUB_TOKEN }}
           targetBranch: main
