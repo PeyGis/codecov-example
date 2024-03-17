@@ -6,7 +6,7 @@ on:
       replica_count:
         description: The new replica count for the deployment
         required: true
-        type: string
+        type: number
       auto_merge:
         description: Whether the created PR should be merged automatically
         required: true
