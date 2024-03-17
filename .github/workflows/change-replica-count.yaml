@@ -35,8 +35,8 @@ jobs:
         id: create-pr
         uses: fjogeleit/yaml-update-action@main
         with:
-          valueFile: '<DEPLOYMENT-MANIFEST-PATH>'  ## replace value
-          propertyPath: '<REPLICA-PROPERTY-PATH>' ## replace value
+          valueFile: 'app/deployment.yaml'  ## replace value
+          propertyPath: 'spec.replicas' ## replace value
           value: '${{ github.event.inputs.replica_count }}'
           commitChange: true
           token: ${{ secrets.MY_GITHUB_TOKEN }}
