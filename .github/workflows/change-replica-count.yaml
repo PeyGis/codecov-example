@@ -6,7 +6,7 @@ on:
       replica_count:
         description: The new replica count for the deployment
         required: true
-        type: number
+        type: string
       auto_merge:
         description: Whether the created PR should be merged automatically
         required: true
@@ -37,7 +37,7 @@ jobs:
         with:
           valueFile: 'app/deployment.yaml'  ## replace value
           propertyPath: 'spec.replicas' ## replace value
-          value: ${{ github.event.inputs.replica_count }}
+          value: ${{ fromJSON(github.event.inputs.replica_count) }}
           commitChange: true
           token: ${{ secrets.MY_GITHUB_TOKEN }}
           targetBranch: main
