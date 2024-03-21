@@ -2,8 +2,9 @@ name: Terraform Apply
 on:
   workflow_dispatch:
     inputs:
-      run_identifier:
+      tf_apply_run_identifier:
         type: string
+        required: true
       port_payload:
         required: true
         description: Port's payload, including details for who triggered the action and
@@ -14,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      
       - name: Log starting of cloud resource creation 
         uses: port-labs/port-github-action@v1
         with:
@@ -22,7 +24,7 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
-              About to provision a cloud resource planned in Port with run ID: ${{ github.event.inputs.run_identifier }} .. ⛴️
+              About to provision a cloud resource planned in Port with run ID: ${{ github.event.inputs.tf_apply_run_identifier }} .. ⛴️
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -35,7 +37,7 @@ jobs:
       - name: Download Plan Artifact
         uses: actions/download-artifact@v4
         with:
-          name: tfport-${{github.event.inputs.run_identifier}}
+          name: tfport-${{github.event.inputs.tf_apply_run_identifier}}
           path: tfapply.tfplan
           
       - name: Setup Terraform
