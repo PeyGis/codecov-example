@@ -82,7 +82,7 @@ jobs:
           action: terraform_apply
           properties: |-
             {
-              "run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}"
+              "tf_apply_run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}"
             }
     
       - name: Log message to update Port on the status of the TF Apply request
