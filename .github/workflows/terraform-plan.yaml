@@ -23,7 +23,7 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
-              About to create an s3 bucket${{ github.event.inputs.bucket_name }} .. ⛴️
+              About to create an s3 bucket with name: ${{ github.event.inputs.bucket_name }} .. ⛴️
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -50,7 +50,7 @@ jobs:
             -out=tfport-${GITHUB_RUN_NUMBER}.tfplan
           terraform show -no-color tfport-${GITHUB_RUN_NUMBER}.tfplan
           
-      - name: Create a log message
+      - name: Update Port on status of planning terraform resource
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
@@ -58,6 +58,28 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
-              s3 bucket created successfully ${{ steps.plan.outputs.stdout }} ✅
+              s3 bucket created successfully and now requesting approval to apply the plan ${{ steps.plan.outputs.stdout }} ✅
 
-
+      - name: Request approval to apply terraform resource 
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: CREATE_RUN
+          icon: GithubActions
+          blueprint: service
+          action: terraform_apply
+          properties: |-
+            {
+              "run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}"
+            }
+    
+      - name: Log message to update Port on the status of the TF Apply request
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{ fromJson(inputs.port_payload).context.runId }}
+          logMessage: |
+              The request to provision and apply the terraform resource has been sent to the approval team. The status of request will be shared in the action log
