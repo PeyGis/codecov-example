@@ -51,11 +51,16 @@ jobs:
           terraform show -no-color tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
 
       - name: Save Plan Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
+        id: artifact-upload-step
         with:
           name: terraform-plan
           path: tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
+          retention-days: 7
           
+      - name: Output artifact ID
+        run:  echo 'Artifact ID is ${{ steps.artifact-upload-step.outputs.artifact-id }}'
+      
       - name: Update Port on status of planning terraform resource
         uses: port-labs/port-github-action@v1
         with:
