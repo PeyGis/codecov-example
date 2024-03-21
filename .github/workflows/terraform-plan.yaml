@@ -47,8 +47,14 @@ jobs:
           terraform validate
           terraform plan \
             -input=false \
-            -out=tfport-${GITHUB_RUN_NUMBER}.tfplan
-          terraform show -no-color tfport-${GITHUB_RUN_NUMBER}.tfplan
+            -out=tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
+          terraform show -no-color tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
+
+      - name: Save Plan Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: terraform-plan
+          path: tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
           
       - name: Update Port on status of planning terraform resource
         uses: port-labs/port-github-action@v1
@@ -58,7 +64,7 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
-              s3 bucket created successfully and now requesting approval to apply the plan ${{ steps.plan.outputs.stdout }} ✅
+              s3 bucket planned successfully and now requesting approval to apply the plan ${{ steps.plan.outputs.stdout }} ✅
 
       - name: Request approval to apply terraform resource 
         uses: port-labs/port-github-action@v1
