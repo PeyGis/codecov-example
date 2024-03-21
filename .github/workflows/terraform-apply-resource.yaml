@@ -41,21 +41,37 @@ jobs:
           curl \
             -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3.raw" \
-            -o tfplan.tfplan \
+            -o /tmp/tfapply.zip \
             -L "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/tfport-r_CQx19Ix1Lawf3IW8/zip"
+     
+     # Unzip the downloaded zip file
+      - name: Unzip Terraform Plan File
+        run: unzip -o /tmp/tfapply.zip -d /tmp
 
+     # Move the extracted plan file to the appropriate directory
+      - name: Move Terraform Plan File
+        run: |
+          mkdir -p app  # Create the directory if it doesn't exist
+          mv /tmp/tfapply.tfplan app/tfapply.tfplan
+          
       # - name: Download Plan Artifact
       #   uses: actions/download-artifact@v4
       #   with:
       #     name: tfport-r_CQx19Ix1Lawf3IW8 # tfport-${{github.event.inputs.tf_apply_run_identifier}}
       #     path: tfapply.tfplan
-          
+
+      
+      # List contents of the app directory
+      - name: List app Directory Contents
+        run: ls -la app
+        
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
           
       - name: Terraform Apply
         id:   tf-apply
         run: |
+          cd app  # Navigate to the directory containing the plan file
           terraform apply -auto-approve tfapply.tfplan
           
       - name: Update Port on status of applying terraform resource
