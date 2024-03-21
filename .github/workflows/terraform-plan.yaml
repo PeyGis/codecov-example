@@ -47,15 +47,15 @@ jobs:
           terraform validate
           terraform plan \
             -input=false \
-            -out=tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
-          terraform show -no-color tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
+            -out=tfplan
+          terraform show -json tfplan | jq '.' > tfport-${{fromJson(inputs.port_payload).context.runId}}.json
 
       - name: Save Plan Artifact
         uses: actions/upload-artifact@v4
         id: artifact-upload-step
         with:
           name: tfport-${{fromJson(inputs.port_payload).context.runId}}
-          path: tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
+          path: app/tfport-${{fromJson(inputs.port_payload).context.runId}}.json
           retention-days: 7
           
       - name: Output artifact ID
