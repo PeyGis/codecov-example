@@ -48,14 +48,14 @@ jobs:
           terraform plan \
             -input=false \
             -out=tfplan
-          terraform show -json tfplan | jq '.' > tfport-${{fromJson(inputs.port_payload).context.runId}}.json
+          terraform show -no-color tfplan > tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
 
       - name: Save Plan Artifact
         uses: actions/upload-artifact@v4
         id: artifact-upload-step
         with:
           name: tfport-${{fromJson(inputs.port_payload).context.runId}}
-          path: app/tfport-${{fromJson(inputs.port_payload).context.runId}}.json
+          path: app/tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
           retention-days: 7
           
       - name: Output artifact ID
