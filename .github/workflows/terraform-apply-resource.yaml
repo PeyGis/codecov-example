@@ -4,6 +4,7 @@ on:
     inputs:
       tf_apply_run_identifier:
         type: string
+        required: true
       port_payload:
         required: true
         description: Port's payload, including details for who triggered the action and
@@ -14,7 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
+      - name: Display Input variables
+        run: echo ${{ github.event.inputs }}
       - name: Log starting of s3 bucket creation 
         uses: port-labs/port-github-action@v1
         with:
