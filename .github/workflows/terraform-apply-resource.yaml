@@ -33,12 +33,22 @@ jobs:
           aws-secret-access-key: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
           aws-session-token: '${{ secrets.AWS_SESSION_TOKEN }}'
           aws-region: '${{ secrets.AWS_REGION }}'
-          
-      - name: Download Plan Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: tfport-r_CQx19Ix1Lawf3IW8 # tfport-${{github.event.inputs.tf_apply_run_identifier}}
-          path: tfapply.tfplan
+
+
+     # Download Terraform plan artifact from the previous workflow run
+      - name: Download Terraform Plan Artifact
+        run: |
+          curl \
+            -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3.raw" \
+            -o tfplan.tfplan \
+            -L "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/tfport-r_CQx19Ix1Lawf3IW8/zip"
+
+      # - name: Download Plan Artifact
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: tfport-r_CQx19Ix1Lawf3IW8 # tfport-${{github.event.inputs.tf_apply_run_identifier}}
+      #     path: tfapply.tfplan
           
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
