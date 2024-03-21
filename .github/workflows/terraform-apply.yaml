@@ -10,43 +10,82 @@ on:
           general context (blueprint, run id, etc...)
         type: string
 jobs:
-  create-entity-in-port-and-update-run:
+  apply-and-provision-resource:
     runs-on: ubuntu-latest
     steps:
-      - name: UPSERT Entity
+      - uses: actions/checkout@v3
+
+      - name: Log starting of s3 bucket creation 
         uses: port-labs/port-github-action@v1
         with:
-          identifier: some_identifier
-          title: Some Title
-          team: "[]"
-          icon: DefaultBlueprint
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{ fromJson(inputs.port_payload).context.runId }}
+          logMessage: |
+              About to provision a cloud resource planned in Port with run ID: ${{ github.event.inputs.run_identifier }} .. ⛴️
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+          aws-secret-access-key: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+          aws-session-token: '${{ secrets.AWS_SESSION_TOKEN }}'
+          aws-region: '${{ secrets.AWS_REGION }}'
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+          
+      - name: Terraform Apply
+        id:   plan
+        env:
+          TF_VAR_bucket_name:  "${{ github.event.inputs.bucket_name }}"
+          TF_VAR_aws_region: "${{ secrets.AWS_REGION }}"
+        run: |
+          cd app
+          terraform init
+          terraform validate
+          terraform plan \
+            -input=false \
+            -out=tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
+          terraform show -no-color tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
+
+      - name: Save Plan Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: terraform-plan
+          path: tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
+          
+      - name: Update Port on status of planning terraform resource
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{ fromJson(inputs.port_payload).context.runId }}
+          logMessage: |
+              s3 bucket planned successfully and now requesting approval to apply the plan ${{ steps.plan.outputs.stdout }} ✅
+
+      - name: Request approval to apply terraform resource 
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: CREATE_RUN
+          icon: GithubActions
           blueprint: service
+          action: terraform_apply
           properties: |-
             {
-              "readme": "string",
-              "url": "https://example.com",
-              "language": "GO",
-              "slack": "https://example.com",
-              "code_owners": "string",
-              "type": "Backend",
-              "lifecycle": "Production",
-              "locked_in_prod": false,
-              "locked_reason_prod": "string",
-              "locked_in_test": false,
-              "locked_reason_test": "string"
+              "run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}"
             }
-          relations: "{}"
-          clientId: ${{ secrets.PORT_CLIENT_ID }}
-          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
-          baseUrl: https://api.getport.io
-          operation: UPSERT
-          runId: ${{fromJson(inputs.port_payload).context.runId}}
-      - name: Create a log message
+    
+      - name: Log message to update Port on the status of the TF Apply request
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
           clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
-          baseUrl: https://api.getport.io
           operation: PATCH_RUN
-          runId: ${{fromJson(inputs.port_payload).context.runId}}
-          logMessage: An example of a log message
+          runId: ${{ fromJson(inputs.port_payload).context.runId }}
+          logMessage: |
+              The request to provision and apply the terraform resource has been sent to the approval team. The status of request will be shared in the action log
