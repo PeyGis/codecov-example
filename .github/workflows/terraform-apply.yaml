@@ -2,7 +2,7 @@ name: Terraform Apply
 on:
   workflow_dispatch:
     inputs:
-      bucket_name:
+      run_identifier:
         type: string
       port_payload:
         required: true
