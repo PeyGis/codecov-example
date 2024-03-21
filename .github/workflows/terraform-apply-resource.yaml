@@ -1,0 +1,26 @@
+name: Terraform Apply Resource
+on:
+  workflow_dispatch:
+    inputs:
+      tf_apply_run_identifier:
+        type: string
+      port_payload:
+        required: true
+        description: Port's payload, including details for who triggered the action and
+          general context (blueprint, run id, etc...)
+        type: string
+jobs:
+  provision-bucket:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Log starting of s3 bucket creation 
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{ fromJson(inputs.port_payload).context.runId }}
+          logMessage: |
+              About to create an s3 bucket with name: ${{ github.event.inputs.tf_apply_run_identifier }} .. ⛴️
