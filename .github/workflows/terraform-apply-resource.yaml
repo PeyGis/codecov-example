@@ -71,13 +71,15 @@ jobs:
         
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7.5
           
       - name: Terraform Apply
         id:   tf-apply
         run: |
           cd terraform-artifact
           ls -al
-          terraform apply terraform-artifact.zip
+          terraform apply tfplan
           
       - name: Update Port on status of applying terraform resource
         uses: port-labs/port-github-action@v1
