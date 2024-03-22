@@ -8,6 +8,8 @@ on:
       artifact_identifier:
         type: string
         required: true
+      tf_plan_output:
+        type: string
       port_payload:
         required: true
         description: Port's payload, including details for who triggered the action and
