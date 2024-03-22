@@ -1,4 +1,4 @@
-name: Approve Terraform Resoure
+name: Approve and Provision Terraform Resoure
 on:
   workflow_dispatch:
     inputs:
@@ -27,7 +27,7 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
-              About to provision a cloud resource planned in Port with run ID: ${{ github.event.inputs.port_run_identifier }} .. ⛴️
+              About to provision a cloud resource previously planned in Port with run ID: ${{ github.event.inputs.port_run_identifier }} ... ⛴️
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -38,8 +38,7 @@ jobs:
           aws-region: '${{ secrets.AWS_REGION }}'
 
 
-     # Download Terraform plan artifact from the previous workflow run
-      - name: Download Terraform Plan Artifact
+      - name: Download Terraform plan artifact from the previous workflow run
         run: |          
           mkdir terraform-artifact
           cd terraform-artifact
@@ -55,8 +54,7 @@ jobs:
             exit 1
           fi
         
-      # List contents of the app directory
-      - name: List app Directory Contents
+      - name: List contents of working directory
         run: ls -la terraform-artifact
         
       - name: Setup Terraform
@@ -64,18 +62,15 @@ jobs:
         with:
           terraform_version: 1.7.5
 
-      
-      - name: Make Provider Binary Executable
+      - name: Make provider binary executable
         run: |
           cd terraform-artifact
           chmod +x .terraform/providers/registry.terraform.io/hashicorp/aws/5.42.0/linux_amd64/terraform-provider-aws_v5.42.0_x5
 
-
-      - name: Terraform Apply
+      - name: Terraform apply resource
         id:   tf-apply
         run: |
           cd terraform-artifact
-          ls -al
           terraform apply tfplan-${{ github.event.inputs.port_run_identifier }}
           
       - name: Update Port on status of applying terraform resource
@@ -86,4 +81,14 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
-              cloud resource successfully provisioned ✅
+              cloud resource successfully approved and provisioned ✅
+
+      - name: Update caller workflow about outcome of provisioning the resource
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{ github.event.inputs.port_run_identifier }}
+          logMessage: |
+              The request to provision a cloud resource has been approved by a manager and successfully provisioned ✅
