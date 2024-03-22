@@ -75,8 +75,20 @@ jobs:
           cd terraform-artifact
           terraform apply tfplan-${{ github.event.inputs.port_run_identifier }}
           
-      - name: Update Port on status of applying terraform resource
+      - name: Update Port on status of applying terraform resource (success)
         uses: port-labs/port-github-action@v1
+        if: ${{steps.tf-apply.outcome == 'success'}}
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{ fromJson(inputs.port_payload).context.runId }}
+          logMessage: |
+              cloud resource successfully approved and provisioned ✅
+
+      - name: Update Port on status of applying terraform resource (failure)
+        uses: port-labs/port-github-action@v1
+        if: ${{steps.tf-apply.outcome != 'success'}}
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
           clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
