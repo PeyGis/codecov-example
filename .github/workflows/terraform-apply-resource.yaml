@@ -73,7 +73,14 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.5
-          
+
+      
+      - name: Make Provider Binary Executable
+        run: |
+          cd terraform-artifact
+          chmod +x .terraform/providers/registry.terraform.io/hashicorp/aws/5.42.0/linux_amd64/terraform-provider-aws_v5.42.0_x5
+
+
       - name: Terraform Apply
         id:   tf-apply
         run: |
