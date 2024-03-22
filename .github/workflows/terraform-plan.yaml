@@ -79,7 +79,7 @@ jobs:
           operation: CREATE_RUN
           icon: GithubActions
           blueprint: service
-          action: terraform_apply
+          action: terraform_apply_resource
           properties: |-
             {
               "tf_apply_run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}",
