@@ -56,7 +56,7 @@ jobs:
         id: artifact-upload-step
         with:
           name: tfplan-${{fromJson(inputs.port_payload).context.runId}}
-          path: app/tfplan-${{fromJson(inputs.port_payload).context.runId}}
+          path: app/
           retention-days: 7
           
       - name: Output artifact ID
