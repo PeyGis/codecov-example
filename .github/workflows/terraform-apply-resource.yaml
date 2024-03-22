@@ -40,7 +40,7 @@ jobs:
         run: |          
           mkdir terraform-artifact
           cd terraform-artifact
-          artifact_url=$(curl -sSL -I -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/1347417591/zip" | grep -i "location:" | awk '{print $2}' | tr -d '\r')
+          artifact_url=$(curl -sSL -I -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/1349460710/zip" | grep -i "location:" | awk '{print $2}' | tr -d '\r')
           curl -sSL -o terraform-artifact.zip "$artifact_url"
           if [ $? -ne 0 ]; then
             echo "Failed to download artifact. Exiting."
@@ -77,7 +77,7 @@ jobs:
         run: |
           cd terraform-artifact
           ls
-          terraform apply tfplan-r_CQx19Ix1Lawf3IW8
+          terraform apply tfplan-r_oNecC9APKw66Hk1E
           
       - name: Update Port on status of applying terraform resource
         uses: port-labs/port-github-action@v1
