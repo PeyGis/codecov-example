@@ -105,7 +105,7 @@ jobs:
           properties: |-
             {
               "port_run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}",
-              "artifact_identifier": "${{ steps.artifact-upload-step.outputs.artifact-id }}"
+              "artifact_identifier": "${{ steps.artifact-upload-step.outputs.artifact-id }}",
               "tf_plan_output": ${{ env.TF_PLAN_JSON }}
             }
     
