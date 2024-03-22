@@ -51,7 +51,7 @@ jobs:
           terraform plan \
             -input=false \
             -out=tfplan-${{fromJson(inputs.port_payload).context.runId}}
-
+          
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v4
         id: artifact-upload-step
@@ -98,6 +98,7 @@ jobs:
             {
               "port_run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}",
               "artifact_identifier": "${{ steps.artifact-upload-step.outputs.artifact-id }}"
+              "tf_plan_output": "${{ steps.plan.outputs.stdout }}"
             }
     
       - name: Log message to update Port on the status of the TF Apply request (success)
