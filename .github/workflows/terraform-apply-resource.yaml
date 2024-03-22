@@ -87,8 +87,7 @@ jobs:
         run: |
           cd terraform-artifact
           ls
-          cat tfport-r_CQx19Ix1Lawf3IW8.tfplan
-          terraform apply tfport-r_CQx19Ix1Lawf3IW8.tfplan -auto-approve
+          terraform apply -auto-approve tfport-r_CQx19Ix1Lawf3IW8.tfplan
           
       - name: Update Port on status of applying terraform resource
         uses: port-labs/port-github-action@v1
