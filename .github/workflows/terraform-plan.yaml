@@ -1,4 +1,4 @@
-name: Plan a Cloud Resource with Terraform
+name: Plan a Cloud Resource using Terraform
 on:
   workflow_dispatch:
     inputs:
