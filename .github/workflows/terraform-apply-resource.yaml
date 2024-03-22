@@ -39,11 +39,13 @@ jobs:
       - name: Download Terraform Plan Artifact
         run: |
           mkdir terraform-artifact
-          curl \
-            -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3.raw" \
-            -o terraform-artifact/terraform-artifact.zip \
-            -L "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/tfport-r_CQx19Ix1Lawf3IW8/zip"
+          curl -sSL -o terraform-artifact/terraform-artifact.zip -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/tfport-r_CQx19Ix1Lawf3IW8/zip"
+
+          # curl \
+          #   -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
+          #   -H "Accept: application/vnd.github.v3.raw" \
+          #   -o terraform-artifact/terraform-artifact.zip \
+          #   -L "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/tfport-r_CQx19Ix1Lawf3IW8/zip"
 
       # List contents of the app directory
       - name: List app Directory Contents
@@ -51,7 +53,7 @@ jobs:
         
      # Unzip the downloaded zip file
       - name: Unzip Terraform Plan File
-        run: unzip terraform-artifact/terraform-artifact.zip -d terraform-artifact
+        run: unzip -qq terraform-artifact/terraform-artifact.zip -d terraform-artifact
 
      # # Move the extracted plan file to the appropriate directory
      #  - name: Move Terraform Plan File
