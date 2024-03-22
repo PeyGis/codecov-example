@@ -2,9 +2,12 @@ name: Terraform Apply
 on:
   workflow_dispatch:
     inputs:
-      # tf_apply_run_identifier:
-      #   type: string
-      #   required: true
+      tf_apply_run_identifier:
+        type: string
+        required: true
+      artifact_id:
+        type: string
+        required: true
       port_payload:
         required: true
         description: Port's payload, including details for who triggered the action and
@@ -51,23 +54,10 @@ jobs:
             echo "Failed to extract artifact. Exiting."
             exit 1
           fi
-
-      # List contents of the app directory
-      - name: List all Directory Contents
-        run: |
-          pwd
-          ls -la 
         
       # List contents of the app directory
       - name: List app Directory Contents
         run: ls -la terraform-artifact
-        
-
-      # - name: Download Plan Artifact
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: tfport-r_CQx19Ix1Lawf3IW8 # tfport-${{github.event.inputs.tf_apply_run_identifier}}
-      #     path: tfapply.tfplan
         
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -86,7 +76,6 @@ jobs:
         run: |
           cd terraform-artifact
           ls -al
-          export TF_LOG=trace
           terraform apply tfplan-r_njTqEvrEi1H2EO5a
           
       - name: Update Port on status of applying terraform resource
