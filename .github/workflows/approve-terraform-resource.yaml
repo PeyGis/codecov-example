@@ -91,4 +91,4 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ github.event.inputs.port_run_identifier }}
           logMessage: |
-              The request to provision a cloud resource has been approved by a manager and successfully provisioned ✅
+              The request to provision a cloud resource has been approved by a manager and successfully provisioned
