@@ -59,7 +59,8 @@ jobs:
       - name: Unzip Terraform Plan File
         run: |
           pwd
-          unzip terraform-artifact/terraform-artifact.zip -d terraform-artifact
+          cd terraform-artifact
+          unzip terraform-artifact.zip
           
       # List contents of the app directory
       - name: List app Directory Contents
