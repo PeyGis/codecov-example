@@ -38,7 +38,7 @@ jobs:
      # Download Terraform plan artifact from the previous workflow run
       - name: Download Terraform Plan Artifact
         run: |
-          mkdir terraform-artifact
+          #mkdir terraform-artifact
           #curl -sSL -o terraform-artifact/terraform-artifact.zip -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/tfport-r_CQx19Ix1Lawf3IW8/zip"
           
           mkdir terraform-artifact
