@@ -48,6 +48,10 @@ jobs:
           #   -L "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/tfport-r_CQx19Ix1Lawf3IW8/zip"
 
       # List contents of the app directory
+      - name: List all Directory Contents
+        run: ls -la 
+        
+      # List contents of the app directory
       - name: List app Directory Contents
         run: ls -la terraform-artifact
         
