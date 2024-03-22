@@ -82,13 +82,3 @@ jobs:
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
               cloud resource successfully approved and provisioned ✅
-
-      - name: Update caller workflow about outcome of provisioning the resource
-        uses: port-labs/port-github-action@v1
-        with:
-          clientId: ${{ secrets.PORT_CLIENT_ID }}
-          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
-          operation: PATCH_RUN
-          runId: ${{ github.event.inputs.port_run_identifier }}
-          logMessage: |
-              The request to provision a cloud resource has been approved by a manager and successfully provisioned
