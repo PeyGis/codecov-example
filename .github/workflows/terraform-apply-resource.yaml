@@ -77,7 +77,7 @@ jobs:
         run: |
           cd terraform-artifact
           ls
-          terraform apply tfplan-r_oNecC9APKw66Hk1E
+          terraform apply tfplan
           
       - name: Update Port on status of applying terraform resource
         uses: port-labs/port-github-action@v1
