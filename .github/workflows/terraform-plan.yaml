@@ -35,6 +35,8 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7.5
           
       - name: Terraform Plan
         id:   plan
@@ -47,7 +49,7 @@ jobs:
           terraform validate
           terraform plan \
             -input=false \
-            -out=tfplan
+            -out=tfplan-${{fromJson(inputs.port_payload).context.runId}}
           terraform show -no-color tfplan > tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
 
       - name: Save Plan Artifact
@@ -55,7 +57,7 @@ jobs:
         id: artifact-upload-step
         with:
           name: tfplan-${{fromJson(inputs.port_payload).context.runId}}
-          path: app/tfplan
+          path: app/tfplan-${{fromJson(inputs.port_payload).context.runId}}
           retention-days: 7
           
       - name: Output artifact ID
