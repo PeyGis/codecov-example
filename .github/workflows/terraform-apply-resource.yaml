@@ -85,7 +85,8 @@ jobs:
       - name: Terraform Apply
         id:   tf-apply
         run: |
-          cd terraform-artifact  # Navigate to the directory containing the plan file tfapply.tfplan
+          cd terraform-artifact
+          ls 
           terraform apply tfport-r_CQx19Ix1Lawf3IW8.tfplan -auto-approve
           
       - name: Update Port on status of applying terraform resource
