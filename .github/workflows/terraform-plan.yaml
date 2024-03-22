@@ -51,6 +51,13 @@ jobs:
           terraform plan \
             -input=false \
             -out=tfplan-${{fromJson(inputs.port_payload).context.runId}}
+          terraform show -json tfplan-${{fromJson(inputs.port_payload).context.runId}} > tfplan.json
+
+      - name: Save Terraform Plan JSON to Environment Variable
+        id: save-plan-json
+        run: |
+          TF_PLAN_JSON=$(<tfplan.json)
+          echo "TF_PLAN_JSON=$TF_PLAN_JSON" >> $GITHUB_ENV
           
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v4
@@ -98,7 +105,7 @@ jobs:
             {
               "port_run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}",
               "artifact_identifier": "${{ steps.artifact-upload-step.outputs.artifact-id }}"
-              "tf_plan_output": "${{ steps.plan.outputs.stdout }}"
+              "tf_plan_output": "${{ env.TF_PLAN_JSON }}"
             }
     
       - name: Log message to update Port on the status of the TF Apply request (success)
