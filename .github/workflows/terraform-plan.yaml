@@ -54,8 +54,8 @@ jobs:
         uses: actions/upload-artifact@v4
         id: artifact-upload-step
         with:
-          name: tfport-${{fromJson(inputs.port_payload).context.runId}}
-          path: app/tfport-${{fromJson(inputs.port_payload).context.runId}}.tfplan
+          name: tfplan-${{fromJson(inputs.port_payload).context.runId}}
+          path: app/tfplan
           retention-days: 7
           
       - name: Output artifact ID
@@ -82,7 +82,8 @@ jobs:
           action: terraform_apply
           properties: |-
             {
-              "tf_apply_run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}"
+              "tf_apply_run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}",
+              "artifact_id": "${{ steps.artifact-upload-step.outputs.artifact-id }}"
             }
     
       - name: Log message to update Port on the status of the TF Apply request
