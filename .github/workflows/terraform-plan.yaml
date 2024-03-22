@@ -106,7 +106,7 @@ jobs:
             {
               "port_run_identifier": "${{ fromJson(inputs.port_payload).context.runId }}",
               "artifact_identifier": "${{ steps.artifact-upload-step.outputs.artifact-id }}"
-              "tf_plan_output": "${{ env.TF_PLAN_JSON }}"
+              "tf_plan_output": ${{ env.TF_PLAN_JSON }}
             }
     
       - name: Log message to update Port on the status of the TF Apply request (success)
