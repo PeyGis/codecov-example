@@ -1,16 +1,17 @@
-name: Terraform Plan
+name: Plan a Cloud Resource with Terraform
 on:
   workflow_dispatch:
     inputs:
       bucket_name:
         type: string
+        required: true
       port_payload:
         required: true
         description: Port's payload, including details for who triggered the action and
           general context (blueprint, run id, etc...)
         type: string
 jobs:
-  provision-bucket:
+  plan-and-request-approval-for-bucket:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -23,7 +24,7 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
-              About to create an s3 bucket with name: ${{ github.event.inputs.bucket_name }} .. ⛴️
+              About to create an s3 bucket with name: ${{ github.event.inputs.bucket_name }} ... ⛴️
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -51,18 +52,16 @@ jobs:
             -input=false \
             -out=tfplan-${{fromJson(inputs.port_payload).context.runId}}
 
-      - name: Save Plan Artifact
+      - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v4
         id: artifact-upload-step
         with:
           name: tfplan-${{fromJson(inputs.port_payload).context.runId}}
           path: app/
           retention-days: 7
-          
-      - name: Output artifact ID
-        run:  echo 'Artifact ID is ${{ steps.artifact-upload-step.outputs.artifact-id }}'
       
-      - name: Update Port on status of planning terraform resource
+      - name: Update Port on successful plan and upload of terraform resource
+        if: ${{ steps.plan.outcome == 'success' && steps.artifact-upload-step.outcome == 'success' }}
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
@@ -70,9 +69,23 @@ jobs:
           operation: PATCH_RUN
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
-              s3 bucket planned successfully and now requesting approval to apply the plan ${{ steps.plan.outputs.stdout }} ✅
+              s3 bucket planned successfully and uploaded to GitHub artifact. Proceeding to request approval to apply the plan: ${{ steps.plan.outputs.stdout }} ✅
 
-      - name: Request approval to apply terraform resource 
+      
+      - name: Update Port on unsuccessful plan of terraform resource
+        if: ${{ steps.plan.outcome != 'success' || steps.artifact-upload-step.outcome != 'success' }}
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{ fromJson(inputs.port_payload).context.runId }}
+          logMessage: |
+              Error Occured while planning or saving terraform resource. Aborting request to approve the plan
+
+      - name: Request approval to apply Terraform resource
+        if: ${{ steps.plan.outcome == 'success' && steps.artifact-upload-step.outcome == 'success' }}
+        id: request-tf-approval
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
@@ -87,8 +100,9 @@ jobs:
               "artifact_identifier": "${{ steps.artifact-upload-step.outputs.artifact-id }}"
             }
     
-      - name: Log message to update Port on the status of the TF Apply request
+      - name: Log message to update Port on the status of the TF Apply request (success)
         uses: port-labs/port-github-action@v1
+        if: ${{ steps.request-tf-approval.outcome == 'success'}}
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
           clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
@@ -96,3 +110,15 @@ jobs:
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
               The request to provision and apply the terraform resource has been sent to the approval team. The status of request will be shared in the action log
+
+      - name: Log message to update Port on the status of the TF Apply request (failure)
+        uses: port-labs/port-github-action@v1
+        if: ${{ steps.request-tf-approval.outcome != 'success'}}
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{ fromJson(inputs.port_payload).context.runId }}
+          logMessage: |
+              The request to provision and apply the terraform resource has not been sent to the approval team due to error
+
