@@ -62,8 +62,8 @@ jobs:
           ls -la 
         
       # List contents of the app directory
-      # - name: List app Directory Contents
-      #   run: ls -la terraform-artifact
+      - name: List app Directory Contents
+        run: ls -la terraform-artifact
         
      # # Unzip the downloaded zip file
      #  - name: Unzip Terraform Plan File
@@ -71,17 +71,8 @@ jobs:
      #      pwd
      #      cd terraform-artifact
      #      unzip terraform-artifact.zip
-          
-      # List contents of the app directory
-      - name: List app Directory Contents
-        run: ls -la
         
-     # # Move the extracted plan file to the appropriate directory
-     #  - name: Move Terraform Plan File
-     #    run: |
-     #      mkdir -p app  # Create the directory if it doesn't exist
-     #      mv /tmp/tfapply.tfplan app/tfapply.tfplan
-          
+
       # - name: Download Plan Artifact
       #   uses: actions/download-artifact@v4
       #   with:
@@ -95,7 +86,7 @@ jobs:
         id:   tf-apply
         run: |
           cd terraform-artifact  # Navigate to the directory containing the plan file tfapply.tfplan
-          terraform apply -auto-approve
+          terraform apply tfport-r_CQx19Ix1Lawf3IW8.tfplan -auto-approve
           
       - name: Update Port on status of applying terraform resource
         uses: port-labs/port-github-action@v1
