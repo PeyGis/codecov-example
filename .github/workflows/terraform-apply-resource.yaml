@@ -86,7 +86,8 @@ jobs:
         id:   tf-apply
         run: |
           cd terraform-artifact
-          ls 
+          ls
+          cat tfport-r_CQx19Ix1Lawf3IW8.tfplan
           terraform apply tfport-r_CQx19Ix1Lawf3IW8.tfplan -auto-approve
           
       - name: Update Port on status of applying terraform resource
