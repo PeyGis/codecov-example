@@ -86,7 +86,11 @@ jobs:
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
               cloud resource successfully approved and provisioned ✅
-              
+
+      - name: Get current timestamp
+        id: timestamp
+        run: echo "::set-output name=current_time::$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')"
+
       - name: Create cloud resource in Port
         uses: port-labs/port-github-action@v1
         with:
@@ -100,7 +104,8 @@ jobs:
               "type": "storage",
               "provider": "AWS",
               "region": "${{ secrets.AWS_REGION }}",
-              "link": "https://s3.console.aws.amazon.com/s3/buckets/${{ fromJson(inputs.tf_plan_output).variables.bucket_name.value }}"
+              "link": "https://s3.console.aws.amazon.com/s3/buckets/${{ fromJson(inputs.tf_plan_output).variables.bucket_name.value }}",
+              "created_at": "${{ steps.timestamp.outputs.current_time }}""
             }
       
       - name: Update Port on status of applying terraform resource (failure)
