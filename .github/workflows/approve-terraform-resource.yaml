@@ -86,7 +86,24 @@ jobs:
           runId: ${{ fromJson(inputs.port_payload).context.runId }}
           logMessage: |
               cloud resource successfully approved and provisioned ✅
-
+              
+      - name: Create cloud resource in Port
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: UPSERT
+          identifier: ${{ fromJson(inputs.tf_plan_output).variables.bucket_name.value }}
+          blueprint: cloudResource
+          properties: |-
+            {
+              "type": "storage",
+              "provider": "AWS",
+              "region": "${{ secrets.AWS_REGION }}",
+              "link": "https://s3.console.aws.amazon.com/s3/buckets/${{ fromJson(inputs.tf_plan_output).variables.bucket_name.value }}",
+              "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")"
+            }
+      
       - name: Update Port on status of applying terraform resource (failure)
         uses: port-labs/port-github-action@v1
         if: ${{steps.tf-apply.outcome != 'success'}}
