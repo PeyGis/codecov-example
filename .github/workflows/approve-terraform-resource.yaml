@@ -105,7 +105,7 @@ jobs:
               "provider": "AWS",
               "region": "${{ secrets.AWS_REGION }}",
               "link": "https://s3.console.aws.amazon.com/s3/buckets/${{ fromJson(inputs.tf_plan_output).variables.bucket_name.value }}",
-              "created_at": "${{ steps.timestamp.outputs.current_time }}""
+              "created_at": "${{ steps.timestamp.outputs.current_time }}"
             }
       
       - name: Update Port on status of applying terraform resource (failure)
