@@ -57,7 +57,8 @@ jobs:
           fi
         
       - name: List contents of working directory
-        run: ls -la terraform-artifact
+        run: ls -Rla terraform-artifact
+
         
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
