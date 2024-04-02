@@ -77,7 +77,7 @@ jobs:
           # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
           channel-id: 'C06KE3PT2BX'
           # For posting a simple plain text message
-          slack-message: "*Port Service Locked*\n\n*Service Name*: ${{ fromJson(github.event.inputs.port_payload).payload.entity.title }}\n*Environment*: ${{ github.event.inputs.environment }}\n*Reporter*: ${{ fromJson(github.event.inputs.port_payload).trigger.by.user.email }}.\n*Reason*: ${{ github.event.inputs.reason }}"
+          slack-message: "*Port Service Locked*\n\n*Service Name*: ${{ fromJson(github.event.inputs.port_payload).payload.entity.title }}\n*Link*: https://app.getport.io/${{ fromJson(github.event.inputs.port_payload).context.blueprint }}Entity?identifier=${{ fromJson(github.event.inputs.port_payload).context.entity }}\n*Environment*: ${{ github.event.inputs.environment }}\n*Reporter*: ${{ fromJson(github.event.inputs.port_payload).trigger.by.user.email }}.\n*Reason*: ${{ github.event.inputs.reason }}"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
