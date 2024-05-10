@@ -1,0 +1,39 @@
+name: Test Jira
+
+on:
+  workflow_dispatch:
+    inputs:
+      status:
+        description: The new replica count for the deployment
+        required: true
+        type: string
+      comments:
+        description: Whether the created PR should be merged automatically
+        required: true
+        type: string
+      user:
+        description: Whether the created PR should be merged automatically
+        required: true
+        type: boolean
+      issue-id:
+        description: Whether the created PR should be merged automatically
+        required: true
+        type: string
+      port_payload:
+        required: true
+        description: >-
+          Port's payload, including details for who triggered the action and
+          general context (blueprint, run id, etc...)
+jobs:
+  change-replica-count:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inform execution of request to change replica count
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
+          logMessage: "About to change replica count in deployment manifest..."
