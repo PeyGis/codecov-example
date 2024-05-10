@@ -15,7 +15,7 @@ on:
         description: Whether the created PR should be merged automatically
         required: true
         type: boolean
-      issue-id:
+      issue_id:
         description: Whether the created PR should be merged automatically
         required: true
         type: string
