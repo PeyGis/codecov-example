@@ -35,7 +35,7 @@ jobs:
       id: create
       uses: atlassian/gajira-create@v3
       with:
-        project: ${{ inputs.rule_result_entity.relations.project }}
+        project: ${{ fromJson(inputs.rule_result_entity).relations.project }}
         issuetype: Task
         summary:  "Automation task - degraded rule result: ${{ inputs.rule_result_name }}"
         description: |
