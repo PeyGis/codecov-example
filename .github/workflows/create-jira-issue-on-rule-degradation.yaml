@@ -11,7 +11,7 @@ on:
         description: 'A link to the evaluated entity'
         required: true
         type: string
-      rule_result_entity:
+      rule_result:
         description: "The rule reesult entity"
         required: true
         type: string
@@ -35,11 +35,11 @@ jobs:
       id: create
       uses: atlassian/gajira-create@v3
       with:
-        project: ${{ fromJson(inputs.rule_result_entity).relations.project }}
+        project: ${{ fromJson(inputs.rule_result).relations.jiraProject }}
         issuetype: Task
         summary:  "Automation task - degraded rule result: ${{ inputs.rule_result_name }}"
         description: |
-          This task was created by a Port automation, due to the degradation of rule result ${{ inputs.rule_result_name }}. See evaluated entity: ${{ inputs.entity_link }}. and ${{inputs.rule_result_entity}}
+          This task was created by a Port automation, due to the degradation of rule result ${{ inputs.rule_result_name }}. See evaluated entity: ${{ inputs.entity_link }}.
     
     - name: Log issue creation
       uses: port-labs/port-github-action@v1
