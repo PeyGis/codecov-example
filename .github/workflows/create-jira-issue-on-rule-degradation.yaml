@@ -11,6 +11,10 @@ on:
         description: 'A link to the evaluated entity'
         required: true
         type: string
+      rule_result_entity:
+        description: "The rule reesult entity"
+        required: true
+        type: string
       runId:
         description: "The run's unique id"
         required: true
@@ -35,7 +39,7 @@ jobs:
         issuetype: Task
         summary:  "Automation task - degraded rule result: ${{ inputs.rule_result_name }}"
         description: |
-          This task was created by a Port automation, due to the degradation of rule result ${{ inputs.rule_result_name }}. See evaluated entity: ${{ inputs.entity_link }}.
+          This task was created by a Port automation, due to the degradation of rule result ${{ inputs.rule_result_name }}. See evaluated entity: ${{ inputs.entity_link }}. and ${{input.rule_result_entity}}
     
     - name: Log issue creation
       uses: port-labs/port-github-action@v1
