@@ -1,5 +1,9 @@
 name: Sync Date to Incident IO
 on: [push]
+# Alternatively, run on a schedule.
+# on:
+#   schedule:
+#     - cron: "10 * * * *" # hourly, on the 10th minute
 jobs:
   sync-data:
     runs-on: ubuntu-latest
@@ -24,4 +28,15 @@ jobs:
           response=$(curl -X GET "https://api.getport.io/v1/blueprints/service/entities" \
               -H "Authorization: Bearer ${{ env.access_token }}" \
               -H "Content-Type: application/json") \
-          echo "$response"
+          echo "$response" > response.json
+          echo "response=$(cat response.json)" >> $GITHUB_ENV
+
+      - name: Send Data to Incident IO
+        run: |
+          entities=$(echo '${{ env.response }}' | jq -c '.entities[]')
+          for entity in $entities; do
+            curl -i -X POST "https://api.incident.io/v2/catalog_entries" \
+              -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d "$entity"
+          done
