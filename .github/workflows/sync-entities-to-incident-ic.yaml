@@ -23,5 +23,5 @@ jobs:
         run: |
           response=$(curl -X GET "https://api.getport.io/v1/blueprints/service/entities" \
               -H "Authorization: Bearer ${{ env.access_token }}" \
-              -H "Content-Type: application/json" \
+              -H "Content-Type: application/json") \
           echo "$response"
