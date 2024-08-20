@@ -1,0 +1,19 @@
+name: Sync Date to Incident IO
+on: [push]
+jobs:
+  sync-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        
+      - name: Retrieve Port Access Token
+        id: get_token
+        run: |
+          access_token=$(curl --location --request POST 'https://api.getport.io/v1/auth/access_token' \
+          --header 'Content-Type: application/json' \
+          --data-raw '{
+              "clientId": "${{ secrets.PORT_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.PORT_CLIENT_SECRET }}"
+          }' | jq '.accessToken' | sed 's/"//g')
+          echo "access_token=$access_token" >> $GITHUB_ENV
