@@ -1,4 +1,4 @@
-name: Sync Date to Incident IO
+name: Sync Data to Incident IO
 on: [push]
 # Alternatively, run on a schedule.
 # on:
@@ -54,25 +54,25 @@ jobs:
       - name: Map and Send Data to Incident IO
         run: |
           schema=$(jq '.catalog_type.schema.attributes' schema.json)
-          entities=$(echo '${{ env.response }}' | jq -c '.entities[]')
+          entities=$(jq -c '.entities[]' response.json)
 
           for entity in $entities; do
-            owner_id=$(echo $schema | jq -r '.[] | select(.name == "owner") | .id')
-            documentation_id=$(echo $schema | jq -r '.[] | select(.name == "documentation") | .id')
-            language_id=$(echo $schema | jq -r '.[] | select(.name == "language") | .id')
-            lifecycle_id=$(echo $schema | jq -r '.[] | select(.name == "lifecycle") | .id')
+            owner_id=$(echo "$schema" | jq -r '.[] | select(.name == "owner") | .id')
+            documentation_id=$(echo "$schema" | jq -r '.[] | select(.name == "documentation") | .id')
+            language_id=$(echo "$schema" | jq -r '.[] | select(.name == "language") | .id')
+            lifecycle_id=$(echo "$schema" | jq -r '.[] | select(.name == "lifecycle") | .id')
 
             data=$(jq -n \
               --arg owner_id "$owner_id" \
-              --arg owner "$(echo $entity | jq -r '.properties.owner')" \
+              --arg owner "$(echo "$entity" | jq -r '.properties.owner // empty')" \
               --arg documentation_id "$documentation_id" \
-              --arg documentation "$(echo $entity | jq -r '.properties.readme')" \
+              --arg documentation "$(echo "$entity" | jq -r '.properties.readme // empty')" \
               --arg language_id "$language_id" \
-              --arg language "$(echo $entity | jq -r '.properties.language')" \
+              --arg language "$(echo "$entity" | jq -r '.properties.language // empty')" \
               --arg lifecycle_id "$lifecycle_id" \
-              --arg lifecycle "$(echo $entity | jq -r '.properties.lifecycle')" \
-              --arg external_id "$(echo $entity | jq -r '.identifier')" \
-              --arg name "$(echo $entity | jq -r '.title')" \
+              --arg lifecycle "$(echo "$entity" | jq -r '.properties.lifecycle // empty')" \
+              --arg external_id "$(echo "$entity" | jq -r '.identifier')" \
+              --arg name "$(echo "$entity" | jq -r '.title')" \
               --arg catalog_type_id "01J5RB95K5NNDE1CRQ7ZQ24YH5" \
               '{
                 "aliases": [],
@@ -87,8 +87,11 @@ jobs:
                 "name": $name
               }')
 
-            curl -i -X POST "https://api.incident.io/v2/catalog_entries" \
+            response=$(curl -i -X POST "https://api.incident.io/v2/catalog_entries" \
               -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
               -H "Content-Type: application/json" \
-              -d "$data"
+              -d "$data")
+
+            echo "Response from Incident.io API for entity $external_id:"
+            echo "$response"
           done
