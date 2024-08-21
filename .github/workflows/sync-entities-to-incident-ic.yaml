@@ -27,9 +27,18 @@ jobs:
         run: |
           response=$(curl -X GET "https://api.getport.io/v1/blueprints/service/entities" \
               -H "Authorization: Bearer ${{ env.access_token }}" \
-              -H "Content-Type: application/json") \
-          echo "Port Service Entities Response:"
-          echo "$response"
+              -H "Content-Type: application/json")
+          
+          # Check if response is empty or if an error occurred
+          if [ -z "$response" ]; then
+            echo "No response received from Port API."
+            exit 1
+          else
+            echo "Port Service Entities Response:"
+            echo "$response"
+          fi
+          
+          # Save response to file and environment variable
           echo "$response" > response.json
           echo "response=$(cat response.json)" >> $GITHUB_ENV
 
