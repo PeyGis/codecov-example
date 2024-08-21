@@ -56,6 +56,7 @@ jobs:
           schema=$(jq '.catalog_type.schema.attributes' schema.json)
           entities=$(jq -c '.entities[]' response.json)
 
+          echo "$entities"
           for entity in $entities; do
             echo "Entity data to be processed"
             echo "$entity"
