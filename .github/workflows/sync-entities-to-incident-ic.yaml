@@ -62,6 +62,12 @@ jobs:
             language_id=$(echo "$schema" | jq -r '.[] | select(.name == "language") | .id')
             lifecycle_id=$(echo "$schema" | jq -r '.[] | select(.name == "lifecycle") | .id')
 
+            name=$(echo "$entity" | jq -r '.title // empty')
+            if [ -z "$name" ]; then
+              echo "Error: 'name' field is required but is empty. Skipping this entity."
+              continue
+            fi
+
             data=$(jq -n \
               --arg owner_id "$owner_id" \
               --arg owner "$(echo "$entity" | jq -r '.properties.owner // empty')" \
@@ -72,7 +78,7 @@ jobs:
               --arg lifecycle_id "$lifecycle_id" \
               --arg lifecycle "$(echo "$entity" | jq -r '.properties.lifecycle // empty')" \
               --arg external_id "$(echo "$entity" | jq -r '.identifier')" \
-              --arg name "$(echo "$entity" | jq -r '.title')" \
+              --arg name "$name" \
               --arg catalog_type_id "01J5RB95K5NNDE1CRQ7ZQ24YH5" \
               '{
                 "aliases": [],
@@ -87,6 +93,9 @@ jobs:
                 "name": $name
               }')
 
+            echo "Data to be sent for entity $external_id:"
+            echo "$data"
+
             response=$(curl -i -X POST "https://api.incident.io/v2/catalog_entries" \
               -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
               -H "Content-Type: application/json" \
@@ -95,3 +104,4 @@ jobs:
             echo "Response from Incident.io API for entity $external_id:"
             echo "$response"
           done
+
