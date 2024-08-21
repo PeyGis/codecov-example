@@ -40,7 +40,7 @@ jobs:
           
           # Save response to file and environment variable
           echo "$response" > response.json
-          echo "response=$(cat response.json)" >> $GITHUB_ENV
+          #echo "response=$(cat response.json)" >> $GITHUB_ENV
 
       - name: Get Incident.io Schema
         id: get_schema
@@ -57,16 +57,15 @@ jobs:
           entities=$(jq -c '.entities[]' response.json)
 
           for entity in $entities; do
+            echo "Entity data to be processed"
+            echo "$entity"
+            
             owner_id=$(echo "$schema" | jq -r '.[] | select(.name == "owner") | .id')
             documentation_id=$(echo "$schema" | jq -r '.[] | select(.name == "documentation") | .id')
             language_id=$(echo "$schema" | jq -r '.[] | select(.name == "language") | .id')
             lifecycle_id=$(echo "$schema" | jq -r '.[] | select(.name == "lifecycle") | .id')
 
             name=$(echo "$entity" | jq -r '.title // empty')
-            if [ -z "$name" ]; then
-              echo "Error: 'name' field is required but is empty. Skipping this entity."
-              continue
-            fi
 
             data=$(jq -n \
               --arg owner_id "$owner_id" \
