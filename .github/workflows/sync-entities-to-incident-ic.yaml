@@ -28,6 +28,7 @@ jobs:
           response=$(curl -X GET "https://api.getport.io/v1/blueprints/service/entities" \
               -H "Authorization: Bearer ${{ env.access_token }}" \
               -H "Content-Type: application/json") \
+          echo "$response"
           echo "$response" > response.json
           echo "response=$(cat response.json)" >> $GITHUB_ENV
 
@@ -37,17 +38,8 @@ jobs:
           schema_response=$(curl --location --request GET 'https://api.incident.io/v2/catalog_types/01J5RB95K5NNDE1CRQ7ZQ24YH5' \
           -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
           -H "Content-Type: application/json")
+          echo "$schema_response"
           echo "$schema_response" > schema.json
-          
-      - name: Send Data to Incident IO
-        run: |
-          entities=$(echo '${{ env.response }}' | jq -c '.entities[]')
-          for entity in $entities; do
-            curl -i -X POST "https://api.incident.io/v2/catalog_entries" \
-              -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
-              -H "Content-Type: application/json" \
-              -d "$entity"
-          done
 
       - name: Map and Send Data to Incident IO
         run: |
