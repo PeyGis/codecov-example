@@ -60,8 +60,8 @@ jobs:
 
           # Process each entity
           echo "$entities" | while IFS= read -r entity; do
-            echo "Entity data to be processed:"
-            echo "$entity"
+            #echo "Entity data to be processed:"
+            #echo "$entity"
 
             owner_id=$(echo "$schema" | jq -r '.[] | select(.name == "owner") | .id')
             documentation_id=$(echo "$schema" | jq -r '.[] | select(.name == "documentation") | .id')
