@@ -76,7 +76,7 @@ jobs:
 
             data=$(jq -n \
               --arg owner_id "$owner_id" \
-              --arg owner "$(echo "$entity" | jq -r '.properties.owner // empty')" \
+              --arg owner "$(echo "$entity" | jq -r '.createdBy // empty')" \
               --arg documentation_id "$documentation_id" \
               --arg documentation "$(echo "$entity" | jq -r '.properties.readme // empty')" \
               --arg language_id "$language_id" \
