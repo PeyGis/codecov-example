@@ -20,9 +20,9 @@ jobs:
                 port_client_id: ${{ secrets.PORT_CLIENT_ID }}
                 port_client_secret: ${{ secrets.PORT_CLIENT_SECRET }}
                 port_base_url: "https://api.getport.io"
-                identifier: "customer-sonarqube"
+                identifier: "customer-sonarqube-onprem"
                 config: |
-                    sonar_api_token: ${{ secrets.sonarApiToken }}
-                    sonar_url: https://sonarcloud.io
-                    sonar_organization_id: ${{ secrets.sonarOrganizationId }}
+                    sonar_api_token: ${{ secrets.sonarOnPremApiToken }}
+                    sonar_url: https://sonar.staging-internal.getport.io
+                    sonar_is_on_premise: true
                     
