@@ -1,3 +1,4 @@
+
 Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
