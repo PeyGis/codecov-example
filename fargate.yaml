@@ -1,4 +1,4 @@
-
+name: Fargate
 Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
