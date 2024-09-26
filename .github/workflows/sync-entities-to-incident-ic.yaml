@@ -76,7 +76,7 @@ jobs:
 
             data=$(jq -n \
               --arg url_id "$url_id" \
-              --arg url "$(echo "$entity" | jq -r '.url // empty')" \
+              --arg url "$(echo "$entity" | jq -r '.properties.url // empty')" \
               --arg readme_id "$readme_id" \
               --arg readme "$(echo "$entity" | jq -r '.properties.readme // empty')" \
               --arg language_id "$language_id" \
@@ -102,13 +102,14 @@ jobs:
                 "name": $name
               }')
 
-            echo "Sending data to API for entity $external_id:"
+            echo "Sending data to API for entity $external_id"
+            echo "$data"
 
             response=$(curl -i -X POST "https://api.incident.io/v2/catalog_entries" \
               -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
               -H "Content-Type: application/json" \
               -d "$data")
 
-            echo "Response from Incident.io API for entity $external_id:"
+            echo "Response from Incident.io API for entity $external_id"
           done
 
