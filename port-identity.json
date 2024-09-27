@@ -1,0 +1,23 @@
+{
+  "service_name": "grpcsvc",
+  "lob": "OPS",
+  "used_by_lobs": [
+    "N/A"
+  ],
+  "owner_team": "VT",
+  "type": "Service",
+  "api_type": [
+    "GRPC"
+  ],
+  "base_service_version": "6.0.2",
+  "required_in_location": [
+    "US",
+    "Ireland"
+  ],
+  "uses_with": [
+    "Kafka",
+    "RDS"
+  ],
+  "slack_channel_url": "https://imprivata.enterprise.slack.com/archives/C018E07M51U",
+  "description": "The service description"
+}
