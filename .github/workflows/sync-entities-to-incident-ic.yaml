@@ -102,14 +102,13 @@ jobs:
                 "name": $name
               }')
 
-            echo "Sending data to API for entity $external_id"
-            echo "$data"
+            echo "Sending data to API for entity $name"
 
             response=$(curl -i -X POST "https://api.incident.io/v2/catalog_entries" \
               -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
               -H "Content-Type: application/json" \
               -d "$data")
 
-            echo "Response from Incident.io API for entity $external_id"
+            echo "Response from Incident.io API for entity $name"
           done
 
