@@ -40,7 +40,6 @@ jobs:
           
           # Save response to file and environment variable
           echo "$response" > response.json
-          #echo "response=$(cat response.json)" >> $GITHUB_ENV
 
       - name: Get Incident.io Schema
         id: get_schema
