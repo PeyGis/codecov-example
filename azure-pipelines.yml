@@ -31,7 +31,5 @@ jobs:
     - script: |
         echo "Webhook triggered by: ${{ parameters.PortWebhookDeploySAMLIdP.client_code }}"
         echo "Client Name: ${{ parameters.PortWebhookDeploySAMLIdP.client_name }}"
-        echo "Client Metadata URL: ${{ parameters.PortWebhookDeploySAMLIdP.client_metadata }}"
-        echo "Vitalware Client: ${{ parameters.PortWebhookDeploySAMLIdP.vw_client }}"
         echo "Deploy to Development: ${{ parameters.PortWebhookDeploySAMLIdP.development }}"
         echo "Client Email Domain: ${{ parameters.PortWebhookDeploySAMLIdP.email_domain }}"
