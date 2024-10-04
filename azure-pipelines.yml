@@ -26,7 +26,11 @@ resources:
       connection: port_trigger
 
 jobs:
-- job: DeploySAMLIdP
+- job: port_trigger
   steps:
     - script: |
         echo "Webhook triggered by no one"
+        echo "Webhook triggered by: ${{ parameters.port_trigger.client_code }}"
+        echo "Client Name: ${{ parameters.port_trigger.client_name }}"
+        echo "Deploy to Development: ${{ parameters.port_trigger.development }}"
+        echo "Client Email Domain: ${{ parameters.port_trigger.email_domain }}"
