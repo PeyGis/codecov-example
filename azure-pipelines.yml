@@ -22,14 +22,11 @@ trigger: none  # Disables automatic triggers on code commits.
 
 resources:
   webhooks:
-    - webhook: PortWebhookDeploySAMLIdP
-      connection: PortWebhookDeploySAMLIdP
+    - webhook: port_trigger
+      connection: port_trigger
 
 jobs:
 - job: DeploySAMLIdP
   steps:
     - script: |
-        echo "Webhook triggered by: ${{ parameters.PortWebhookDeploySAMLIdP.client_code }}"
-        echo "Client Name: ${{ parameters.PortWebhookDeploySAMLIdP.client_name }}"
-        echo "Deploy to Development: ${{ parameters.PortWebhookDeploySAMLIdP.development }}"
-        echo "Client Email Domain: ${{ parameters.PortWebhookDeploySAMLIdP.email_domain }}"
+        echo "Webhook triggered by no one"
