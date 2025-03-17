@@ -39,7 +39,7 @@ jobs:
         with:
           url: 'https://api.firehydrant.io/v1/incidents'
           method: 'POST'
-          customHeaders: '{"Content-Type": "application/json", "Authorization": "${{ secrets.FIREHYDRANT_API_KEY }}"'
+          customHeaders: '{"Content-Type": "application/json", "Authorization": "${{ secrets.FIREHYDRANT_API_KEY }}"}'
           data: >-
             {
                 "name": "${{ github.event.inputs.name }}",
