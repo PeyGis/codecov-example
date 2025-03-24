@@ -1,3 +1,4 @@
+name: hello
 flag_management:
   individual_flags:
     - name: smart-tests
