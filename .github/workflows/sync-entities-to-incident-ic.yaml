@@ -1,0 +1,112 @@
+name: Sync Data to Incident IO
+on: [fork]
+# Alternatively, run on a schedule.
+# on:
+#   schedule:
+#     - cron: "10 * * * *" # hourly, on the 10th minute
+jobs:
+  sync-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        
+      - name: Get Port Access Token
+        id: get_token
+        run: |
+          access_token=$(curl --location --request POST 'https://api.getport.io/v1/auth/access_token' \
+          --header 'Content-Type: application/json' \
+          --data-raw '{
+              "clientId": "${{ secrets.PORT_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.PORT_CLIENT_SECRET }}"
+          }' | jq '.accessToken' | sed 's/"//g')
+          echo "access_token=$access_token" >> $GITHUB_ENV
+
+      - name: Get Service Entities from Port
+        id: get_entities
+        run: |
+          response=$(curl -X GET "https://api.getport.io/v1/blueprints/service/entities" \
+              -H "Authorization: Bearer ${{ env.access_token }}" \
+              -H "Content-Type: application/json")
+          
+          # Check if response is empty or if an error occurred
+          if [ -z "$response" ]; then
+            echo "No response received from Port API."
+            exit 1
+          else
+            echo "Port Service Entities Response:"
+            echo "$response"
+          fi
+          
+          # Save response to file and environment variable
+          echo "$response" > response.json
+
+      - name: Get Incident.io Schema
+        id: get_schema
+        run: |
+          schema_response=$(curl --location --request GET 'https://api.incident.io/v2/catalog_types/01J5RB95K5NNDE1CRQ7ZQ24YH5' \
+          -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
+          -H "Content-Type: application/json")
+          echo "$schema_response"
+          echo "$schema_response" > schema.json
+          
+      - name: Map and Send Data to Incident IO
+        run: |
+          schema=$(jq '.catalog_type.schema.attributes' schema.json)
+
+          # Read entities as a JSON array, and use `jq` to iterate correctly
+          entities=$(jq -c '.entities[]' response.json)
+
+          # Process each entity
+          echo "$entities" | while IFS= read -r entity; do
+            #echo "Entity data to be processed:"
+            #echo "$entity"
+
+            owner_id=$(echo "$schema" | jq -r '.[] | select(.name == "owner") | .id')
+            documentation_id=$(echo "$schema" | jq -r '.[] | select(.name == "documentation") | .id')
+            language_id=$(echo "$schema" | jq -r '.[] | select(.name == "language") | .id')
+            lifecycle_id=$(echo "$schema" | jq -r '.[] | select(.name == "lifecycle") | .id')
+
+            name=$(echo "$entity" | jq -r '.title // empty')
+            if [ -z "$name" ]; then
+              echo "Error: 'name' field is required but is empty. Skipping this entity."
+              continue
+            fi
+
+            data=$(jq -n \
+              --arg owner_id "$owner_id" \
+              --arg owner "$(echo "$entity" | jq -r '.createdBy // empty')" \
+              --arg documentation_id "$documentation_id" \
+              --arg documentation "$(echo "$entity" | jq -r '.properties.readme // empty')" \
+              --arg language_id "$language_id" \
+              --arg language "$(echo "$entity" | jq -r '.properties.language // empty')" \
+              --arg lifecycle_id "$lifecycle_id" \
+              --arg lifecycle "$(echo "$entity" | jq -r '.properties.lifecycle // empty')" \
+              --arg external_id "$(echo "$entity" | jq -r '.identifier')" \
+              --arg name "$name" \
+              --arg catalog_type_id "01J5RB95K5NNDE1CRQ7ZQ24YH5" \
+              '{
+                "aliases": [],
+                "attribute_values": {
+                  ($owner_id): {"value": {"literal": $owner}},
+                  ($documentation_id): {"value": {"literal": $documentation}},
+                  ($language_id): {"value": {"literal": $language}},
+                  ($lifecycle_id): {"value": {"literal": $lifecycle}}
+                },
+                "catalog_type_id": $catalog_type_id,
+                "external_id": $external_id,
+                "name": $name
+              }')
+
+            echo "Data to be sent for entity $external_id:"
+            echo "$data"
+
+            response=$(curl -i -X POST "https://api.incident.io/v2/catalog_entries" \
+              -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d "$data")
+
+            echo "Response from Incident.io API for entity $external_id:"
+            echo "$response"
+          done
+
