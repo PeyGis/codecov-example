@@ -3,6 +3,12 @@ name: DORA Pull Request Strategy
 on:
   workflow_dispatch:
     inputs:
+      your_deployment_integration:
+        description: 'Deployment Integration'
+        required: true
+      your_deployment_type:
+        description: 'Deployment Type'
+        required: true
       deploy_branch:
         description: 'Deployment Branch'
         required: true
