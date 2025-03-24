@@ -1,21 +1,13 @@
-name: Rollback ArgoCD Deployment Image
+name: Change Replica Count
 
 on:
   workflow_dispatch:
     inputs:
-      image:
-        description: The new image to use for the rollback
+      replica_count:
+        description: The new replica count for the deployment
         required: true
         type: string
-      deployment_path:
-        description: Path to where the ArgoCD deployment manifest
-        required: true
-        type: string
-      property_path:
-        description: Path to where the deployment image is specified in the deployment manifest
-        required: true
-        type: string
-      should_merge:
+      auto_merge:
         description: Whether the created PR should be merged automatically
         required: true
         type: boolean
@@ -25,10 +17,10 @@ on:
           Port's payload, including details for who triggered the action and
           general context (blueprint, run id, etc...)
 jobs:
-  rollback-deployment:
+  change-replica-count:
     runs-on: ubuntu-latest
     steps:
-      - name: Inform execution of request to rollback deployment image
+      - name: Inform execution of request to change replica count
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
@@ -36,23 +28,23 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
-          logMessage: "About to rollback deployment image in argocd..."
+          logMessage: "About to change replica count in deployment manifest..."
 
       - uses: actions/checkout@v3
       - name: Create PR
         id: create-pr
         uses: fjogeleit/yaml-update-action@main
         with:
-          valueFile: '${{ github.event.inputs.deployment_path }}'
-          propertyPath: '${{ github.event.inputs.property_path }}'
-          value: '${{ github.event.inputs.image }}'
+          valueFile: 'app/deployment.yaml'  ## replace value
+          propertyPath: 'spec.replicas' ## replace value
+          value: "!!int '${{ fromJson(github.event.inputs.replica_count) }}'"
           commitChange: true
           token: ${{ secrets.MY_GITHUB_TOKEN }}
           targetBranch: main
           masterBranchName: main
           createPR: true
           branch: deployment/${{ fromJson(github.event.inputs.port_payload).context.runId }}
-          message: 'Update Image Version to ${{ github.event.inputs.image }}'
+          message: 'Update deployment replica to ${{ github.event.inputs.replica_count }}'
           
       - name: Inform Port about pull request creation status - Success
         if: steps.create-pr.outcome == 'success'
@@ -80,9 +72,9 @@ jobs:
             The creation of PR was not successful.
   
       - name: Merge Pull Request
-        if: ${{ github.event.inputs.should_merge == 'true' && steps.create-pr.outcome == 'success' }}
+        if: ${{ github.event.inputs.auto_merge == 'true' && steps.create-pr.outcome == 'success' }}
         env:
-          GH_TOKEN: ${{ secrets.MY_PR_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
           PR_URL: ${{ fromJson(steps.create-pr.outputs.pull_request).url }}
         run: |
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -101,8 +93,8 @@ jobs:
             echo "merge_status=unsuccessful" >> $GITHUB_ENV
           fi
 
-      - name: Inform completion of Argocd rollback into Port
-        if: ${{ github.event.inputs.should_merge == 'true' }}
+      - name: Inform completion of replica update operation to Port
+        if: ${{ github.event.inputs.auto_merge == 'true' }}
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
