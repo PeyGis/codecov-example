@@ -1,9 +1,6 @@
 name: Scorecard Update
 
-on:
-  push:
-    paths:
-      - 'scorecards/*.json'
+on: fork
 
 jobs:
   send_scorecard:
