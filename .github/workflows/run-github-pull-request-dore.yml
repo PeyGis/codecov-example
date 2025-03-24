@@ -75,7 +75,7 @@ jobs:
         if: ${{ !contains(inputs.pr_rules_fields, 'Repository') }}
         run: |
           API_URL="https://api.github.com"
-          HEADERS="-H 'Accept: application/vnd.github.v3+json' -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}'"
+          HEADERS="-H 'Accept: application/vnd.github.v3+json' -H 'Authorization: Bearer ${{ secrets.DORA_GITHUB_TOKEN }}'"
           PAGE=1
           REPOS=()
           while : ; do
@@ -89,7 +89,7 @@ jobs:
       - name: Fetch PR data
         run: |
           API_URL="https://api.github.com"
-          HEADERS="-H 'Accept: application/vnd.github.v3+json' -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}'"
+          HEADERS="-H 'Accept: application/vnd.github.v3+json' -H 'Authorization: Bearer ${{ secrets.DORA_GITHUB_TOKEN }}'"
           QUERY_PARAMS=""
           CURRENT_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           THREE_MONTHS_AGO=$(date -u -d '-3 months' +%Y-%m-%dT%H:%M:%SZ)
