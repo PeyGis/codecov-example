@@ -1,5 +1,5 @@
 name: Sync Data to Incident IO
-on: [push]
+on: [fork]
 # Alternatively, run on a schedule.
 # on:
 #   schedule:
