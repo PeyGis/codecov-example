@@ -1,0 +1,115 @@
+name: Trigger FireHydrant Incident
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: The name or title of the incident
+        required: true
+        type: string
+      priority:
+        description: New priority level for the incident (e.g., P1)
+        required: true
+        type: string
+      description:
+        description: The detailed description of the incident
+        required: false
+        type: string
+      port_context:
+        required: true
+        description: includes blueprint, run ID, and entity identifier from Port.
+
+jobs:
+  trigger-incident:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inform execution of request to trigger incident
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_context).run_id}}
+          logMessage: "About to trigger an incident in FireHydrant..."
+
+      - name: Trigger Incident in FireHydrant
+        id: trigger_incident
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: 'https://api.firehydrant.io/v1/incidents'
+          method: 'POST'
+          customHeaders: '{"Content-Type": "application/json", "Authorization": "${{ secrets.FIREHYDRANT_API_KEY }}"}'
+          data: >-
+            {
+                "name": "${{ github.event.inputs.name }}",
+                "description": "${{ github.event.inputs.description }}",
+                "priority": "${{ github.event.inputs.priority }}"
+            }
+
+      - name: Inform Port of FireHydrant failure request
+        if: failure()
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_context).run_id}}
+          logMessage: "Request to trigger FireHydrant incident failed ..."
+
+      - name: Inform Port of successful FireHydrant incident creation
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_context).run_id}}
+          logMessage: "Incident successfully created in FireHydrant. Upserting the response entity in Port..."
+
+      - name: Upsert FireHydrant entity to Port 
+        id: upsert_entity
+        uses: port-labs/port-github-action@v1
+        with:
+          identifier: "${{ fromJson(steps.trigger_incident.outputs.response).id }}"
+          title: "${{ fromJson(steps.trigger_incident.outputs.response).name }}"
+          blueprint: "firehydrantIncident"
+          properties: |-
+            {
+              "url": "${{ fromJson(steps.trigger_incident.outputs.response).incident_url }}",
+              "priority": "${{ fromJson(steps.trigger_incident.outputs.response).priority }}",
+              "severity": "${{ fromJson(steps.trigger_incident.outputs.response).severity }}",
+              "tags": "${{ fromJson(steps.trigger_incident.outputs.response).tag_list}}",
+              "currentMilestone": "${{ fromJson(steps.trigger_incident.outputs.response).current_milestone }}",
+              "description": "${{ fromJson(steps.trigger_incident.outputs.response).description}}",
+              "customerImpact": "${{ fromJson(steps.trigger_incident.outputs.response).customers_impacted }}",
+              "createdBy": "${{ fromJson(steps.trigger_incident.outputs.response).created_by.name }}",
+              "createdAt": "${{ fromJson(steps.trigger_incident.outputs.response).created_at }}"
+            }
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: UPSERT
+          runId: ${{fromJson(inputs.port_context).run_id}}
+
+      - name: Inform Entity upsert failure
+        if: steps.upsert_entity.outcome == 'failure'
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_context).run_id}}
+          logMessage: "Failed to report the created incident back to Port ..."
+
+      - name: Inform completion of FireHydrant incident creation
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_context).run_id}}
+          logMessage: "Incident creation process was successful ✅"

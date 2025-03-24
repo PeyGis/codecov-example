@@ -1,0 +1,68 @@
+name: Fargate
+Resources:
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: !Sub
+        - "${DBName}-db-subnet-group"
+        - DBName: !FindInMap [EnvironmentMap, !Ref AppEnvironment, DBInstanceIdentifier]
+      DBSubnetGroupDescription: "DB subnet group"
+      SubnetIds:
+        - "Fn::ImportValue": !Sub "${NetworkStackName}-PrivateSubnetIdA"
+        - "Fn::ImportValue": !Sub "${NetworkStackName}-PrivateSubnetIdB"
+        - "Fn::ImportValue": !Sub "${NetworkStackName}-PrivateSubnetIdC"
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub
+        - "${DBName}-db-security-group"
+        - DBName: !FindInMap [EnvironmentMap, !Ref AppEnvironment, DBInstanceIdentifier]
+      GroupDescription: "Enable DB access from instances"
+      VpcId:
+        "Fn::ImportValue": !Sub "${NetworkStackName}-VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId:
+            "Fn::ImportValue": !Sub "${NetworkStackName}-BastionSecurityGroupId"
+        - IpProtocol: "tcp"
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId:
+            "Fn::ImportValue": !Sub "${AppEnvironment}-COMPLIANCE-SHARED-SecurityGroupId"
+        - !If
+          - IsProduction
+            FromPort: 3306
+            ToPort: 3306
+            Description: "DATA PRODUCTION VPC"
+          - !Ref "AWS::NoValue"
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DBInstanceIdentifier: !FindInMap [EnvironmentMap, !Ref AppEnvironment, DBInstanceIdentifier]
+      DBName: !Ref DBName
+      DBParameterGroupName: !Ref DBParameterGroup
+      AllocatedStorage: !Ref DBAllocateStorage
+      MaxAllocatedStorage: !Ref MaxDBAllocateStorage
+      DBInstanceClass: !Ref DBInstanceType
+      Engine: "MySQL"
+      EngineVersion: 8.0.35
+      MasterUsername: "admin"
+      ManageMasterUserPassword: true
+      EnableIAMDatabaseAuthentication: true
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: false
+      StorageEncrypted: true
+      DeletionProtection: true
+      BackupRetentionPeriod: !FindInMap [EnvironmentMap, !Ref AppEnvironment, BackupRetentionPeriod]
+      MultiAZ: !FindInMap [EnvironmentMap, !Ref AppEnvironment, MultiAZ]
+      EnablePerformanceInsights: !If [PerformanceInsightsSupported, true, false]
+      AutoMinorVersionUpgrade: false
+      AllowMajorVersionUpgrade: true
