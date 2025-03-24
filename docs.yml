@@ -1,0 +1,30 @@
+# First Document
+name: Project Alpha
+description: A sample project
+team:
+  - name: Alice
+    role: Developer
+  - name: Bob
+    role: Tester
+
+---
+# Second Document
+name: Project Beta
+description: Another sample project
+team:
+  - name: Charlie
+    role: Developer
+  - name: Dana
+    role: Manager
+
+---
+# Third Document
+name: Project Gamma
+description: Yet another sample project
+team:
+  - name: Eve
+    role: Developer
+  - name: Frank
+    role: DevOps
+
+...

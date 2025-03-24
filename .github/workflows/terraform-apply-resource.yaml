@@ -1,0 +1,89 @@
+name: Terraform Apply
+on:
+  workflow_dispatch:
+    inputs:
+      tf_apply_run_identifier:
+        type: string
+        required: true
+      artifact_id:
+        type: string
+        required: true
+      port_payload:
+        required: true
+        description: Port's payload, including details for who triggered the action and
+          general context (blueprint, run id, etc...)
+        type: string
+jobs:
+  apply-and-provision-resource:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Log starting of cloud resource creation 
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{ fromJson(inputs.port_payload).context.runId }}
+          logMessage: |
+              About to provision a cloud resource planned in Port with run ID: ${{ github.event.inputs.tf_apply_run_identifier }} .. ⛴️
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+          aws-secret-access-key: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+          aws-session-token: '${{ secrets.AWS_SESSION_TOKEN }}'
+          aws-region: '${{ secrets.AWS_REGION }}'
+
+
+     # Download Terraform plan artifact from the previous workflow run
+      - name: Download Terraform Plan Artifact
+        run: |          
+          mkdir terraform-artifact
+          cd terraform-artifact
+          artifact_url=$(curl -sSL -I -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/1349595226/zip" | grep -i "location:" | awk '{print $2}' | tr -d '\r')
+          curl -sSL -o terraform-artifact.zip "$artifact_url"
+          if [ $? -ne 0 ]; then
+            echo "Failed to download artifact. Exiting."
+            exit 1
+          fi
+          unzip -qq terraform-artifact.zip
+          if [ $? -ne 0 ]; then
+            echo "Failed to extract artifact. Exiting."
+            exit 1
+          fi
+        
+      # List contents of the app directory
+      - name: List app Directory Contents
+        run: ls -la terraform-artifact
+        
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      
+      - name: Make Provider Binary Executable
+        run: |
+          cd terraform-artifact
+          chmod +x .terraform/providers/registry.terraform.io/hashicorp/aws/5.42.0/linux_amd64/terraform-provider-aws_v5.42.0_x5
+
+
+      - name: Terraform Apply
+        id:   tf-apply
+        run: |
+          cd terraform-artifact
+          ls -al
+          terraform apply tfplan-r_njTqEvrEi1H2EO5a
+          
+      - name: Update Port on status of applying terraform resource
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{ fromJson(inputs.port_payload).context.runId }}
+          logMessage: |
+              cloud resource successfully provisioned ✅
