@@ -91,74 +91,64 @@ jobs:
           REPOS=(${{ env.REPO_LIST }})
           THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
           FILTERED_PRS=""
-          
+      
           for REPO in "${REPOS[@]}"; do
-            echo "$REPO"
+            echo "Processing repo: $REPO"
             PAGE=1
             while :; do
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
-              PRS=($(echo "$RESPONSE" | jq -c '.[]' | tr '\n' ' '))
-
+      
               echo "$RESPONSE" | jq -c '.[]' | while IFS= read -r PR; do
-                echo "print this pr"
+                echo "Processing PR..."
+      
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
                 echo "Created at: $PR_CREATED_AT"
-                
+      
                 if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
                   break 2  # Stop fetching for this repo
                 fi
-              done
-
-          
-              for PR in $PRS; do
-                echo "print this pr"
-                PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
-                echo "$PR_CREATED_AT"
-          
-                if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
-                  break 2  # Stop fetching for this repo
-                fi
-          
+      
                 PR_MATCHES_FILTERS=true
-          
+      
                 # Apply Filters
                 if [[ "$PR_STATUS_OP" == "is" && "$(echo "$PR" | jq -r '.state')" != "$PR_STATUS_VALUE" ]]; then
                   PR_MATCHES_FILTERS=false
                 elif [[ "$PR_STATUS_OP" == "isn't" && "$(echo "$PR" | jq -r '.state')" == "$PR_STATUS_VALUE" ]]; then
                   PR_MATCHES_FILTERS=false
                 fi
-          
+      
                 PR_LABELS=$(echo "$PR" | jq -r '[.labels[].name] | join(",")')
                 if [[ "$PR_LABEL_OP" == "contains" && "$PR_LABELS" != *"$PR_LABEL_VALUE"* ]]; then
                   PR_MATCHES_FILTERS=false
                 elif [[ "$PR_LABEL_OP" == "doesn't contain" && "$PR_LABELS" == *"$PR_LABEL_VALUE"* ]]; then
                   PR_MATCHES_FILTERS=false
                 fi
-          
+      
                 PR_AUTHOR=$(echo "$PR" | jq -r '.user.login')
                 if [[ "$PR_AUTHOR_OP" == "is" && "$PR_AUTHOR" != "$PR_AUTHORS" ]]; then
                   PR_MATCHES_FILTERS=false
                 elif [[ "$PR_AUTHOR_OP" == "isn't" && "$PR_AUTHOR" == "$PR_AUTHORS" ]]; then
                   PR_MATCHES_FILTERS=false
                 fi
-          
+      
                 if $PR_MATCHES_FILTERS; then
                   FILTERED_PRS+="$PR"$'\n'
                 fi
               done
-          
+      
               ((PAGE++))
             done
           done
-          
+      
           if [[ -z "$FILTERED_PRS" ]]; then
             FINAL_PR_DATA="[]"
           else
             FINAL_PR_DATA=$(echo "$FILTERED_PRS" | jq -s .)
           fi
-          
+      
           echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
+
 
 
 
