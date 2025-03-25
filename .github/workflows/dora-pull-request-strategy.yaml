@@ -165,15 +165,3 @@ jobs:
           done
       
           echo "FINAL_PR_DATA=$FILTERED_PRS" >> "$GITHUB_ENV"
-
-
-      - name: Send Data to Port
-        run: |
-          curl -X POST "https://api.port.io/push-data" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.PORT_API_TOKEN }}" \
-            -d '{
-              "integration": "GitHub",
-              "type": "PR/MR merge",
-              "data": ${{ env.FINAL_PR_DATA }}
-            }'
