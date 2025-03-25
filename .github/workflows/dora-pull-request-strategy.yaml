@@ -1,78 +1,152 @@
-name: DORA Pull Request Strategy
+name: Fetch and Send PR Data
 
 on:
   workflow_dispatch:
     inputs:
-      your_deployment_integration:
-        description: 'Deployment Integration'
-        required: true
-      your_deployment_type:
-        description: 'Deployment Type'
-        required: true
-      deploy_branch:
-        description: 'Deployment Branch'
+      config:
+        description: 'JSON input configuration for fetching PRs'
         required: true
         type: string
-      pr_rules_fields:
-        description: 'PR Rules Fields'
-        required: false
-      pr_rules_status_op:
-        description: 'Status Operator'
-        required: false
-        type: string
-      pr_rules_status_options:
-        description: 'Status Options'
-        required: false
-        type: string
-      pr_rules_author:
-        description: 'PR Authors'
-        required: false
-        type: string
-      pr_rules_author_op:
-        description: 'Author Operator'
-        required: false
-        type: string
-      pr_rules_label_op:
-        description: 'Label Operator'
-        required: false
-        type: string
-      pr_rules_label_str:
-        description: 'Label String'
-        required: false
-        type: string
-      pr_rules_repo_op:
-        description: 'Repository Operator'
-        required: false
-        type: string
-      pr_rules_repo_str:
-        description: 'Repository String'
-        required: false
-        type: string
-      pr_rules_title_op:
-        description: 'Title Operator'
-        required: false
-        type: string
-      pr_rules_title_str:
-        description: 'Title String'
-        required: false
-        type: string
-      port_context:
+      port_payload:
         required: true
-        description: includes blueprint, run ID, and entity identifier from Port.
+        description: Port's payload, including details for who triggered the action and general context (blueprint, run id, etc...)
 
 jobs:
-  trigger-incident:
+  fetch-prs:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        
-      - name: Inform execution of request to trigger incident
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Inform execution of request to escalate incident
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
           clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
-          runId: ${{fromJson(inputs.port_context).run_id}}
-          logMessage: "About to run pull request DORA strategy..."
+          runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
+          logMessage: "About to escalate incident in PagerDuty..."
+
+      - name: Parse Input Configuration
+        id: parse_config
+        run: |
+          echo '${{ inputs.config }}' > config.json
+          echo "CONFIG_JSON=${{ inputs.config }}" >> "$GITHUB_ENV"
+
+      - name: Extract Filters from JSON
+        id: extract_filters
+        run: |
+          CONFIG_JSON=$(echo '${{ env.CONFIG_JSON }}' | jq -c .)
+
+          # Extract individual fields
+          DEPLOY_BRANCH=$(echo "$CONFIG_JSON" | jq -r '.deploy_branch // "main"')
+          PR_RULES_FIELDS=$(echo "$CONFIG_JSON" | jq -c '.pr_rules_fields // []')
+          PR_STATUS_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_status_op // empty')
+          PR_STATUS_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_status_options // empty')
+          PR_AUTHOR_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_author_op // empty')
+          PR_AUTHORS=$(echo "$CONFIG_JSON" | jq -c '.pr_rules_author // []')
+          PR_LABEL_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_label_op // empty')
+          PR_LABEL_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_label_str // empty')
+          PR_REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_repo_op // empty')
+          PR_REPO_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_repo_str // empty')
+
+          echo "DEPLOY_BRANCH=$DEPLOY_BRANCH" >> "$GITHUB_ENV"
+          echo "PR_RULES_FIELDS=$PR_RULES_FIELDS" >> "$GITHUB_ENV"
+          echo "PR_STATUS_OP=$PR_STATUS_OP" >> "$GITHUB_ENV"
+          echo "PR_STATUS_VALUE=$PR_STATUS_VALUE" >> "$GITHUB_ENV"
+          echo "PR_AUTHOR_OP=$PR_AUTHOR_OP" >> "$GITHUB_ENV"
+          echo "PR_AUTHORS=$PR_AUTHORS" >> "$GITHUB_ENV"
+          echo "PR_LABEL_OP=$PR_LABEL_OP" >> "$GITHUB_ENV"
+          echo "PR_LABEL_VALUE=$PR_LABEL_VALUE" >> "$GITHUB_ENV"
+          echo "PR_REPO_OP=$PR_REPO_OP" >> "$GITHUB_ENV"
+          echo "PR_REPO_VALUE=$PR_REPO_VALUE" >> "$GITHUB_ENV"
+
+      - name: Fetch All Repositories (if no repo filter applied)
+        if: ${{ !contains(env.PR_RULES_FIELDS, 'Repository') }}
+        id: fetch_repos
+        run: |
+          GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
+          REPOS=()
+          PAGE=1
+
+          while :; do
+            RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/user/repos?per_page=100&page=$PAGE")
+
+            NEW_REPOS=$(echo "$RESPONSE" | jq -r '.[].full_name')
+            if [[ -z "$NEW_REPOS" ]]; then break; fi
+
+            REPOS+=($NEW_REPOS)
+            ((PAGE++))
+          done
+
+          echo "REPO_LIST=${REPOS[*]}" >> "$GITHUB_ENV"
+
+      - name: Fetch PR Data
+        run: |
+          GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
+          REPOS=(${{ env.REPO_LIST }})
+          THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
+          FILTERED_PRS=()
+
+          for REPO in "${REPOS[@]}"; do
+            PAGE=1
+
+            while :; do
+              RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+                "https://api.github.com/repos/$REPO/pulls?state=all&per_page=100&page=$PAGE")
+
+              PRS=$(echo "$RESPONSE" | jq -c '.[]')
+
+              for PR in $PRS; do
+                PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
+
+                if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
+                  break 2  # Stop fetching for this repo
+                fi
+
+                PR_MATCHES_FILTERS=true
+
+                # Apply Filters
+                if [[ "$PR_STATUS_OP" == "is" && "$(echo "$PR" | jq -r '.state')" != "$PR_STATUS_VALUE" ]]; then
+                  PR_MATCHES_FILTERS=false
+                elif [[ "$PR_STATUS_OP" == "isn't" && "$(echo "$PR" | jq -r '.state')" == "$PR_STATUS_VALUE" ]]; then
+                  PR_MATCHES_FILTERS=false
+                fi
+
+                PR_LABELS=$(echo "$PR" | jq -r '[.labels[].name] | join(",")')
+                if [[ "$PR_LABEL_OP" == "contains" && "$PR_LABELS" != *"$PR_LABEL_VALUE"* ]]; then
+                  PR_MATCHES_FILTERS=false
+                elif [[ "$PR_LABEL_OP" == "doesn't contain" && "$PR_LABELS" == *"$PR_LABEL_VALUE"* ]]; then
+                  PR_MATCHES_FILTERS=false
+                fi
+
+                PR_AUTHOR=$(echo "$PR" | jq -r '.user.login')
+                if [[ "$PR_AUTHOR_OP" == "is" && "$PR_AUTHOR" != "$PR_AUTHORS" ]]; then
+                  PR_MATCHES_FILTERS=false
+                elif [[ "$PR_AUTHOR_OP" == "isn't" && "$PR_AUTHOR" == "$PR_AUTHORS" ]]; then
+                  PR_MATCHES_FILTERS=false
+                fi
+
+                if $PR_MATCHES_FILTERS; then
+                  FILTERED_PRS+=("$PR")
+                fi
+              done
+
+              ((PAGE++))
+            done
+          done
+
+          echo "FINAL_PR_DATA=$(echo "${FILTERED_PRS[@]}" | jq -c .)" >> "$GITHUB_ENV"
+
+      - name: Send Data to Port
+        run: |
+          curl -X POST "https://api.port.io/push-data" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.PORT_API_TOKEN }}" \
+            -d '{
+              "integration": "GitHub",
+              "type": "PR/MR merge",
+              "data": ${{ env.FINAL_PR_DATA }}
+            }'
