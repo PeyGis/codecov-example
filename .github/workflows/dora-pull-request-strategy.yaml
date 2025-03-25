@@ -90,8 +90,7 @@ jobs:
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
           REPOS=(${{ env.REPO_LIST }})
           THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
-          
-          FILTERED_PRS="[]"
+          FILTERED_PRS=""
       
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
@@ -102,66 +101,68 @@ jobs:
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
       
-              if ! echo "$RESPONSE" | jq empty 2>/dev/null; then
-                echo "❌ Invalid JSON response. Dumping response:"
-                echo "$RESPONSE"
-                exit 1
-              fi
-              echo "✅ Valid JSON response received."
-      
-              PR_COUNT=$(echo "$RESPONSE" | jq '. | length')
-              if [[ "$PR_COUNT" -eq 0 ]]; then
+              # If no PRs are returned, stop fetching
+              if [[ "$(echo "$RESPONSE" | jq length)" -eq 0 ]]; then
                 echo "No more PRs found for $REPO. Moving to the next repo..."
                 break
               fi
       
-              INDEX=0
-              while [[ "$INDEX" -lt "$PR_COUNT" ]]; do
-                PR=$(echo "$RESPONSE" | jq -c ".[$INDEX]")
-              
-                if ! echo "$PR" | jq empty 2>/dev/null; then
-                  echo "⚠ Warning: Skipping malformed PR JSON"
-                  ((INDEX++))
-                  continue
-                fi
-              
-                PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at // empty')
-                if [[ -z "$PR_CREATED_AT" ]]; then
-                  echo "⚠ Warning: Missing created_at field for PR. Skipping..."
-                  ((INDEX++))
-                  continue
-                fi
-              
+              echo "$RESPONSE" | jq -c '.[]' | while IFS= read -r PR; do
                 echo "Processing PR..."
+                PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
                 echo "Created at: $PR_CREATED_AT"
-              
+      
                 if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
                   echo "PR is older than 3 months. Stopping further fetch for $REPO."
                   STOP_FETCHING=true
                   break
                 fi
-              
-                # ✅ Fix: Ensure valid JSON before appending
-                #NEW_FILTERED_PRS=$(jq --argjson newPR "$PR" '. + [$newPR]' <<< "$FILTERED_PRS" 2>/dev/null || echo "$FILTERED_PRS")
-                
-                # if [[ -n "$NEW_FILTERED_PRS" ]]; then
-                #   FILTERED_PRS="$NEW_FILTERED_PRS"
-                # else
-                #   echo "⚠ Warning: Failed to append PR data. Retaining original list."
-                # fi
-              
-                echo "✅ After PR Data Successfully Added"
-              
-                ((INDEX++))
+      
+                PR_MATCHES_FILTERS=true
+      
+                # Apply Filters
+                if [[ "$PR_STATUS_OP" == "is" && "$(echo "$PR" | jq -r '.state')" != "$PR_STATUS_VALUE" ]]; then
+                  PR_MATCHES_FILTERS=false
+                elif [[ "$PR_STATUS_OP" == "isn't" && "$(echo "$PR" | jq -r '.state')" == "$PR_STATUS_VALUE" ]]; then
+                  PR_MATCHES_FILTERS=false
+                fi
+      
+                PR_LABELS=$(echo "$PR" | jq -r '[.labels[].name] | join(",")')
+                if [[ "$PR_LABEL_OP" == "contains" && "$PR_LABELS" != *"$PR_LABEL_VALUE"* ]]; then
+                  PR_MATCHES_FILTERS=false
+                elif [[ "$PR_LABEL_OP" == "doesn't contain" && "$PR_LABELS" == *"$PR_LABEL_VALUE"* ]]; then
+                  PR_MATCHES_FILTERS=false
+                fi
+      
+                PR_AUTHOR=$(echo "$PR" | jq -r '.user.login')
+                if [[ "$PR_AUTHOR_OP" == "is" && "$PR_AUTHOR" != "$PR_AUTHORS" ]]; then
+                  PR_MATCHES_FILTERS=false
+                elif [[ "$PR_AUTHOR_OP" == "isn't" && "$PR_AUTHOR" == "$PR_AUTHORS" ]]; then
+                  PR_MATCHES_FILTERS=false
+                fi
+      
+                if $PR_MATCHES_FILTERS; then
+                  FILTERED_PRS+="$PR"$'\n'
+                fi
               done
-
+      
+              # If we decided to stop fetching, break the outer loop
               if [[ "$STOP_FETCHING" == "true" ]]; then
                 break
               fi
       
               ((PAGE++))
-              sleep 1
             done
           done
       
-          echo "FINAL_PR_DATA=$FILTERED_PRS" >> "$GITHUB_ENV"
+          if [[ -z "$FILTERED_PRS" ]]; then
+            FINAL_PR_DATA="[]"
+          else
+            FINAL_PR_DATA=$(echo "$FILTERED_PRS" | jq -s .)
+          fi
+      
+          echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
+      
+                done
+            
+                echo "FINAL_PR_DATA=$FILTERED_PRS" >> "$GITHUB_ENV"
