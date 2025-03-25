@@ -161,9 +161,7 @@ jobs:
                   PR_CLOSED_AT=$(echo "$PR" | jq -r '.closed_at')
                   PR_MERGED_AT=$(echo "$PR" | jq -r '.merged_at')
                   PR_STATUS=$(echo "$PR" | jq -r '.state')
-      
-                  REPO_NAME=$(echo "$REPO" | awk -F'/' '{print $2}')
-                  REPO_IDENTIFIER=$(echo "$REPO" | tr '/' '-')
+                  REPO_IDENTIFIER=$(echo "$PR" | jq -r '.head.repo.full_name')
       
                   JSON_PAYLOAD=$(jq -n \
                     --arg identifier "$PR_ID" \
@@ -191,7 +189,7 @@ jobs:
                         branch: $branch
                       },
                       relations: {
-                        repository: $REPO
+                        repository: $repoIdentifier
                       }
                     }')
       
