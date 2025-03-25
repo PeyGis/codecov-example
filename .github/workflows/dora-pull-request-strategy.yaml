@@ -102,9 +102,8 @@ jobs:
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
       
-              # 🚨 Debugging: Ensure valid JSON response
               if ! echo "$RESPONSE" | jq empty 2>/dev/null; then
-                echo "❌ Invalid JSON response. Dumping response for debugging:"
+                echo "❌ Invalid JSON response. Dumping response:"
                 echo "$RESPONSE"
                 exit 1
               fi
@@ -119,6 +118,12 @@ jobs:
               INDEX=0
               while [[ "$INDEX" -lt "$PR_COUNT" ]]; do
                 PR=$(echo "$RESPONSE" | jq -c ".[$INDEX]")
+      
+                if ! echo "$PR" | jq empty 2>/dev/null; then
+                  echo "⚠ Warning: Skipping malformed PR JSON"
+                  ((INDEX++))
+                  continue
+                fi
       
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at // empty')
                 if [[ -z "$PR_CREATED_AT" ]]; then
@@ -136,8 +141,14 @@ jobs:
                   break
                 fi
       
-                # ✅ Fix: Append PR correctly as a JSON array
-                FILTERED_PRS=$(echo "$FILTERED_PRS" | jq --argjson newPR "$PR" '. + [$newPR]')
+                # ✅ Fix: Validate `FILTERED_PRS` before appending
+                if ! echo "$FILTERED_PRS" | jq empty 2>/dev/null; then
+                  echo "❌ ERROR: FILTERED_PRS is corrupted. Resetting..."
+                  FILTERED_PRS="[]"
+                fi
+      
+                # ✅ Fix: Append PR safely
+                FILTERED_PRS=$(jq --argjson newPR "$PR" '. + [$newPR]' <<< "$FILTERED_PRS")
       
                 ((INDEX++))
               done
@@ -152,6 +163,7 @@ jobs:
           done
       
           echo "FINAL_PR_DATA=$FILTERED_PRS" >> "$GITHUB_ENV"
+
 
       - name: Send Data to Port
         run: |
