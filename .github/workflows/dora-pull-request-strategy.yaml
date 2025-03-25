@@ -109,7 +109,7 @@ jobs:
 
             while true; do
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
-                "https://api.github.com/repos/$ORG/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
+                "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
 
               # Convert JSON response into an array (to avoid broken pipe issues)
               PR_LIST=()
@@ -119,12 +119,12 @@ jobs:
 
               # Stop if no more PRs are found
               if [[ "${#PR_LIST[@]}" -eq 0 ]]; then
-                #echo "No more PRs found for $REPO. Moving to the next repo..."
+                echo "No more PRs found for $REPO. Moving to the next repo..."
                 break
               fi
 
               for PR in "${PR_LIST[@]}"; do
-                echo "Processing $PR ..."
+                echo "Processing PR ..."
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
                 echo "Created at: $PR_CREATED_AT"
 
