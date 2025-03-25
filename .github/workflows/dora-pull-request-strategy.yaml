@@ -116,10 +116,6 @@ jobs:
               fi
       
               INDEX=0
-              set -e
-              set -o pipefail
-              set -x  # Debugging mode
-              
               while [[ "$INDEX" -lt "$PR_COUNT" ]]; do
                 PR=$(echo "$RESPONSE" | jq -c ".[$INDEX]")
               
