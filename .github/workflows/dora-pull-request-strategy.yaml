@@ -31,8 +31,10 @@ jobs:
       - name: Parse Input Configuration
         id: parse_config
         run: |
-          echo '${{ inputs.config }}' > config.json
-          echo "CONFIG_JSON=${{ inputs.config }}" >> "$GITHUB_ENV"
+          echo '${{ toJson(inputs.config) }}' > config.json
+          CONFIG_JSON=$(jq -c . config.json)
+          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
+
 
       - name: Extract Filters from JSON
         id: extract_filters
