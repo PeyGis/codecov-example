@@ -124,9 +124,9 @@ jobs:
               fi
 
               for PR in "${PR_LIST[@]}"; do
-                #echo "Processing PR..."
+                echo "Processing $PR ..."
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
-                #echo "Created at: $PR_CREATED_AT"
+                echo "Created at: $PR_CREATED_AT"
 
                 if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
                   #echo "PR is older than 3 months. Stopping further fetch for $REPO."
