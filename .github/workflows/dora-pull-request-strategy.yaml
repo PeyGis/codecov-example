@@ -90,79 +90,78 @@ jobs:
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
           REPOS=(${{ env.REPO_LIST }})
           THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
-          FILTERED_PRS=""
-      
+          FILTERED_PRS=()
+
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
             PAGE=1
             STOP_FETCHING=false
-      
+
             while [[ "$STOP_FETCHING" == "false" ]]; do
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
-      
+
               # If no PRs are returned, stop fetching
               if [[ "$(echo "$RESPONSE" | jq length)" -eq 0 ]]; then
                 echo "No more PRs found for $REPO. Moving to the next repo..."
                 break
               fi
-      
-              echo "$RESPONSE" | jq -c '.[]' | while IFS= read -r PR; do
+
+              # Process PRs using a safe loop (avoids jq broken pipe)
+              PR_LIST=$(echo "$RESPONSE" | jq -c '.[]')
+              for PR in $PR_LIST; do
                 echo "Processing PR..."
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
                 echo "Created at: $PR_CREATED_AT"
-      
+
                 if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
                   echo "PR is older than 3 months. Stopping further fetch for $REPO."
                   STOP_FETCHING=true
                   break
                 fi
-      
+
                 PR_MATCHES_FILTERS=true
-      
+
                 # Apply Filters
-                if [[ "$PR_STATUS_OP" == "is" && "$(echo "$PR" | jq -r '.state')" != "$PR_STATUS_VALUE" ]]; then
+                PR_STATE=$(echo "$PR" | jq -r '.state')
+                if [[ "$PR_STATUS_OP" == "is" && "$PR_STATE" != "$PR_STATUS_VALUE" ]]; then
                   PR_MATCHES_FILTERS=false
-                elif [[ "$PR_STATUS_OP" == "isn't" && "$(echo "$PR" | jq -r '.state')" == "$PR_STATUS_VALUE" ]]; then
+                elif [[ "$PR_STATUS_OP" == "isn't" && "$PR_STATE" == "$PR_STATUS_VALUE" ]]; then
                   PR_MATCHES_FILTERS=false
                 fi
-      
+
                 PR_LABELS=$(echo "$PR" | jq -r '[.labels[].name] | join(",")')
                 if [[ "$PR_LABEL_OP" == "contains" && "$PR_LABELS" != *"$PR_LABEL_VALUE"* ]]; then
                   PR_MATCHES_FILTERS=false
                 elif [[ "$PR_LABEL_OP" == "doesn't contain" && "$PR_LABELS" == *"$PR_LABEL_VALUE"* ]]; then
                   PR_MATCHES_FILTERS=false
                 fi
-      
+
                 PR_AUTHOR=$(echo "$PR" | jq -r '.user.login')
                 if [[ "$PR_AUTHOR_OP" == "is" && "$PR_AUTHOR" != "$PR_AUTHORS" ]]; then
                   PR_MATCHES_FILTERS=false
                 elif [[ "$PR_AUTHOR_OP" == "isn't" && "$PR_AUTHOR" == "$PR_AUTHORS" ]]; then
                   PR_MATCHES_FILTERS=false
                 fi
-      
+
                 if $PR_MATCHES_FILTERS; then
-                  FILTERED_PRS+="$PR"$'\n'
+                  FILTERED_PRS+=("$PR")
                 fi
               done
-      
+
               # If we decided to stop fetching, break the outer loop
               if [[ "$STOP_FETCHING" == "true" ]]; then
                 break
               fi
-      
+
               ((PAGE++))
             done
           done
-      
-          if [[ -z "$FILTERED_PRS" ]]; then
+
+          if [[ ${#FILTERED_PRS[@]} -eq 0 ]]; then
             FINAL_PR_DATA="[]"
           else
-            FINAL_PR_DATA=$(echo "$FILTERED_PRS" | jq -s .)
+            FINAL_PR_DATA=$(printf '%s\n' "${FILTERED_PRS[@]}" | jq -s .)
           fi
-      
+
           echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
-      
-                done
-            
-                echo "FINAL_PR_DATA=$FILTERED_PRS" >> "$GITHUB_ENV"
