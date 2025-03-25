@@ -95,18 +95,27 @@ jobs:
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
             PAGE=1
-            while :; do
+            STOP_FETCHING=false
+      
+            while [[ "$STOP_FETCHING" == "false" ]]; do
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
       
+              # If no PRs are returned, stop fetching
+              if [[ "$(echo "$RESPONSE" | jq length)" -eq 0 ]]; then
+                echo "No more PRs found for $REPO. Moving to the next repo..."
+                break
+              fi
+      
               echo "$RESPONSE" | jq -c '.[]' | while IFS= read -r PR; do
                 echo "Processing PR..."
-      
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
                 echo "Created at: $PR_CREATED_AT"
       
                 if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
-                  break 2  # Stop fetching for this repo
+                  echo "PR is older than 3 months. Stopping further fetch for $REPO."
+                  STOP_FETCHING=true
+                  break
                 fi
       
                 PR_MATCHES_FILTERS=true
@@ -137,6 +146,11 @@ jobs:
                 fi
               done
       
+              # If we decided to stop fetching, break the outer loop
+              if [[ "$STOP_FETCHING" == "true" ]]; then
+                break
+              fi
+      
               ((PAGE++))
             done
           done
@@ -148,9 +162,6 @@ jobs:
           fi
       
           echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
-
-
-
 
       - name: Send Data to Port
         run: |
