@@ -91,6 +91,7 @@ jobs:
           REPOS=(${{ env.REPO_LIST }})
           THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
           FILTERED_PRS=""
+          BLUEPRINT_ID="githubPullRequest"
 
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
@@ -146,8 +147,61 @@ jobs:
                   PR_MATCHES_FILTERS=false
                 fi
 
+                # if $PR_MATCHES_FILTERS; then
+                #   FILTERED_PRS+="$PR"$'\n'
+                # fi
                 if $PR_MATCHES_FILTERS; then
-                  FILTERED_PRS+="$PR"$'\n'
+                  PR_ID=$(echo "$PR" | jq -r '.id')
+                  PR_TITLE=$(echo "$PR" | jq -r '.title')
+                  PR_NUMBER=$(echo "$PR" | jq -r '.number')
+                  PR_LINK=$(echo "$PR" | jq -r '.html_url')
+                  PR_BRANCH=$(echo "$PR" | jq -r '.head.ref')
+                  PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
+                  PR_UPDATED_AT=$(echo "$PR" | jq -r '.updated_at')
+                  PR_CLOSED_AT=$(echo "$PR" | jq -r '.closed_at')
+                  PR_MERGED_AT=$(echo "$PR" | jq -r '.merged_at')
+                  PR_STATUS=$(echo "$PR" | jq -r '.state')
+      
+                  REPO_NAME=$(echo "$REPO" | awk -F'/' '{print $2}')
+                  REPO_IDENTIFIER=$(echo "$REPO" | tr '/' '-')
+      
+                  JSON_PAYLOAD=$(jq -n \
+                    --arg identifier "$REPO_IDENTIFIER-pr-$PR_NUMBER" \
+                    --arg title "$PR_TITLE" \
+                    --arg status "$PR_STATUS" \
+                    --arg closedAt "$PR_CLOSED_AT" \
+                    --arg updatedAt "$PR_UPDATED_AT" \
+                    --arg mergedAt "$PR_MERGED_AT" \
+                    --arg createdAt "$PR_CREATED_AT" \
+                    --arg link "$PR_LINK" \
+                    --arg prNumber "$PR_NUMBER" \
+                    --arg branch "$PR_BRANCH" \
+                    --arg repoIdentifier "$REPO_IDENTIFIER" \
+                    '{
+                      identifier: $identifier,
+                      title: $title,
+                      properties: {
+                        status: $status,
+                        closedAt: $closedAt,
+                        updatedAt: $updatedAt,
+                        mergedAt: $mergedAt,
+                        createdAt: $createdAt,
+                        link: $link,
+                        prNumber: ($prNumber | tonumber),
+                        branch: $branch
+                      },
+                      relations: {
+                        repository: $repoIdentifier
+                      }
+                    }')
+      
+                  echo "Sending PR $PR_NUMBER from $REPO to Port API..."
+                  curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true" \
+                    --header "Authorization: Bearer $PORT_ACCESS_TOKEN" \
+                    --header "Content-Type: application/json" \
+                    --data-raw "$JSON_PAYLOAD"
+      
+                  echo "PR $PR_NUMBER successfully sent!"
                 fi
               done
 
@@ -158,26 +212,7 @@ jobs:
           # if [[ -z "$FILTERED_PRS" ]]; then
           #   FINAL_PR_DATA="[]"
           # else
-          #   FINAL_PR_DATA=$(echo "$FILTERED_PRS" | jq -s .)
+          #   FINAL_PR_DATA=$(echo "$FILTERED_PRS" | jq -s -c .)
           # fi
-
-          # echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
-
-          if [[ -z "$FILTERED_PRS" ]]; then
-            FINAL_PR_DATA="[]"
-          else
-            FINAL_PR_DATA=$(echo "$FILTERED_PRS" | jq -s -c .)
-          fi
           
-          echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
-
-      - name: Send Data to Port
-        run: |
-          curl -X POST "https://api.port.io/push-data" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.PORT_API_TOKEN }}" \
-            -d '{
-              "integration": "GitHub",
-              "type": "PR/MR merge",
-              "data": ${{ env.FINAL_PR_DATA }}
-            }'
+          #echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
