@@ -108,17 +108,17 @@ jobs:
 
               # Stop if no more PRs are found
               if [[ "${#PR_LIST[@]}" -eq 0 ]]; then
-                echo "No more PRs found for $REPO. Moving to the next repo..."
+                #echo "No more PRs found for $REPO. Moving to the next repo..."
                 break
               fi
 
               for PR in "${PR_LIST[@]}"; do
-                echo "Processing PR..."
+                #echo "Processing PR..."
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
-                echo "Created at: $PR_CREATED_AT"
+                #echo "Created at: $PR_CREATED_AT"
 
                 if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
-                  echo "PR is older than 3 months. Stopping further fetch for $REPO."
+                  #echo "PR is older than 3 months. Stopping further fetch for $REPO."
                   break 2  # Exit both loops
                 fi
 
