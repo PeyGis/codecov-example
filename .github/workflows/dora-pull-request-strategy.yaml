@@ -28,6 +28,19 @@ jobs:
           runId: ${{fromJson(inputs.port_payload).runId}}
           logMessage: "About to fetch pull request data from GitHub..."
 
+      - name: Fetch Port Access Token
+        id: fetch_port_token
+        run: |
+          PORT_ACCESS_TOKEN=$(curl -s -L 'https://api.getport.io/v1/auth/access_token' \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json' \
+            -d '{
+              "clientId": "${{ secrets.DORA_PORT_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.DORA_PORT_CLIENT_SECRET }}"
+            }' | jq -r '.accessToken')
+
+          echo "PORT_ACCESS_TOKEN=$PORT_ACCESS_TOKEN" >> "$GITHUB_ENV"
+          
       - name: Parse Input Configuration
         id: parse_config
         run: |
@@ -221,7 +234,7 @@ jobs:
                   #   --data-raw "$JSON_PAYLOAD"
       
                 curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
-                  --header "Authorization: Bearer ${{ secrets.PORT_ACCESS_TOKEN }}" \
+                  --header "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
                   --header "Content-Type: application/json" \
                   --data-raw "{
                     \"identifier\": \"${PR_IDENTIFIER}\",
