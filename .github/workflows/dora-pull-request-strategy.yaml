@@ -101,16 +101,29 @@ jobs:
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
       
-              # If no PRs are returned, stop fetching
-              if [[ "$(echo "$RESPONSE" | jq length)" -eq 0 ]]; then
+              # 🚨 Check if response is empty or contains an error
+              if [[ -z "$RESPONSE" || "$RESPONSE" == "null" ]]; then
+                echo "⚠ Warning: Empty response from GitHub API. Possible rate limit or auth issue."
+                break
+              elif echo "$RESPONSE" | jq empty 2>/dev/null; then
+                echo "✅ Valid JSON response received."
+              else
+                echo "❌ Error: Invalid JSON response from GitHub API. Dumping response:"
+                echo "$RESPONSE"
+                exit 1
+              fi
+      
+              # Extract PRs safely
+              PR_COUNT=$(echo "$RESPONSE" | jq '. | length')
+              if [[ "$PR_COUNT" -eq 0 ]]; then
                 echo "No more PRs found for $REPO. Moving to the next repo..."
                 break
               fi
       
-              # Extract PRs into an array (avoiding the subshell issue)
-              PRS=($(echo "$RESPONSE" | jq -c '.[]'))
+              INDEX=0
+              while [[ "$INDEX" -lt "$PR_COUNT" ]]; do
+                PR=$(echo "$RESPONSE" | jq -c ".[$INDEX]")
       
-              for PR in "${PRS[@]}"; do
                 echo "Processing PR..."
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
                 echo "Created at: $PR_CREATED_AT"
@@ -122,22 +135,22 @@ jobs:
                 fi
       
                 PR_MATCHES_FILTERS=true
+                PR_STATUS=$(echo "$PR" | jq -r '.state')
+                PR_LABELS=$(echo "$PR" | jq -r '[.labels[].name] | join(",")')
+                PR_AUTHOR=$(echo "$PR" | jq -r '.user.login')
       
-                # Apply Filters
-                if [[ "$PR_STATUS_OP" == "is" && "$(echo "$PR" | jq -r '.state')" != "$PR_STATUS_VALUE" ]]; then
+                if [[ "$PR_STATUS_OP" == "is" && "$PR_STATUS" != "$PR_STATUS_VALUE" ]]; then
                   PR_MATCHES_FILTERS=false
-                elif [[ "$PR_STATUS_OP" == "isn't" && "$(echo "$PR" | jq -r '.state')" == "$PR_STATUS_VALUE" ]]; then
+                elif [[ "$PR_STATUS_OP" == "isn't" && "$PR_STATUS" == "$PR_STATUS_VALUE" ]]; then
                   PR_MATCHES_FILTERS=false
                 fi
       
-                PR_LABELS=$(echo "$PR" | jq -r '[.labels[].name] | join(",")')
                 if [[ "$PR_LABEL_OP" == "contains" && "$PR_LABELS" != *"$PR_LABEL_VALUE"* ]]; then
                   PR_MATCHES_FILTERS=false
                 elif [[ "$PR_LABEL_OP" == "doesn't contain" && "$PR_LABELS" == *"$PR_LABEL_VALUE"* ]]; then
                   PR_MATCHES_FILTERS=false
                 fi
       
-                PR_AUTHOR=$(echo "$PR" | jq -r '.user.login')
                 if [[ "$PR_AUTHOR_OP" == "is" && "$PR_AUTHOR" != "$PR_AUTHORS" ]]; then
                   PR_MATCHES_FILTERS=false
                 elif [[ "$PR_AUTHOR_OP" == "isn't" && "$PR_AUTHOR" == "$PR_AUTHORS" ]]; then
@@ -147,14 +160,16 @@ jobs:
                 if $PR_MATCHES_FILTERS; then
                   FILTERED_PRS+="$PR"$'\n'
                 fi
+      
+                ((INDEX++))
               done
       
-              # If we decided to stop fetching, break the outer loop
               if [[ "$STOP_FETCHING" == "true" ]]; then
                 break
               fi
       
               ((PAGE++))
+              sleep 1  # Rate limit handling
             done
           done
       
@@ -166,10 +181,8 @@ jobs:
       
           echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
 
-
       - name: Send Data to Port
         run: |
-          echo "${{ env.FINAL_PR_DATA }}"
           curl -X POST "https://api.port.io/push-data" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.PORT_API_TOKEN }}" \
