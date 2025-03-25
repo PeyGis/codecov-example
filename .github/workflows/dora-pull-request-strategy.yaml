@@ -222,12 +222,12 @@ jobs:
                     \"identifier\": \"${PR_IDENTIFIER}\",
                     \"title\": \"${PR_TITLE}\",
                     \"properties\": {
-                      \"status\": \"${PR_STATE}\",
+                      \"status\": \"${PR_STATUS}\",
                       \"closedAt\": \"${PR_CLOSED_AT}\",
                       \"updatedAt\": \"${PR_CLOSED_AT}\",
                       \"mergedAt\": \"${PR_MERGED_AT}\",
                       \"createdAt\": \"${PR_CREATED_AT}\",
-                      \"link\": \"${PR_URL}\",
+                      \"link\": \"${PR_LINK}\",
                       \"prNumber\": ${PR_NUMBER},
                       \"branch\": \"${PR_BRANCH}\"
                     }
