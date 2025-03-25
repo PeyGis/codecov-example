@@ -18,15 +18,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Inform execution of request to escalate incident
+      - name: Inform execution of request to fetch historical pull request data
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
           clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
-          runId: ${{fromJson(github.event.inputs.port_payload).context.runId}}
-          logMessage: "About to escalate incident in PagerDuty..."
+          runId: ${{fromJson(inputs.port_payload).runId}}
+          logMessage: "About to fetch pull request data from GitHub..."
 
       - name: Parse Input Configuration
         id: parse_config
