@@ -105,6 +105,7 @@ jobs:
           echo "REPO_LIST=${{ env.PR_REPO_VALUE }}" >> "$GITHUB_ENV"
           
       - name: Fetch PR Data
+        id: upsert_pr_entity
         run: |
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
           REPOS=(${{ env.REPO_LIST }})
@@ -174,9 +175,6 @@ jobs:
                   PR_MATCHES_FILTERS=false
                 fi
 
-                # if $PR_MATCHES_FILTERS; then
-                #   FILTERED_PRS+="$PR"$'\n'
-                # fi
                 if $PR_MATCHES_FILTERS; then
                   PR_IDENTIFIER=$(echo "$PR" | jq -r '.id')
                   PR_TITLE=$(echo "$PR" | jq -r '.title')
@@ -189,49 +187,7 @@ jobs:
                   PR_MERGED_AT=$(echo "$PR" | jq -r '.merged_at')
                   PR_STATUS=$(echo "$PR" | jq -r '.state')
                   REPO_IDENTIFIER=$(echo "$PR" | jq -r '.head.repo.full_name')
-                  # PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at // empty')
-                  # PR_MERGED_AT=$(echo "$PR" | jq -r '.merged_at // empty')
-                  # PR_CLOSED_AT=$(echo "$PR" | jq -r '.closed_at // empty')
-  
-                  # PR_CREATED_AT=$(format_date "$PR_CREATED_AT")
-                  # PR_MERGED_AT=$(format_date "$PR_MERGED_AT")
-                  # PR_CLOSED_AT=$(format_date "$PR_CLOSED_AT")
-      
-                  # JSON_PAYLOAD=$(jq -n \
-                  #   --arg identifier "$PR_ID" \
-                  #   --arg title "$PR_TITLE" \
-                  #   --arg status "$PR_STATUS" \
-                  #   --arg closedAt "$PR_CLOSED_AT" \
-                  #   --arg updatedAt "$PR_UPDATED_AT" \
-                  #   --arg mergedAt "$PR_MERGED_AT" \
-                  #   --arg createdAt "$PR_CREATED_AT" \
-                  #   --arg link "$PR_LINK" \
-                  #   --arg prNumber "$PR_NUMBER" \
-                  #   --arg branch "$PR_BRANCH" \
-                  #   --arg repoIdentifier "$REPO_IDENTIFIER" \
-                  #   '{
-                  #     identifier: $identifier,
-                  #     title: $title,
-                  #     properties: {
-                  #       status: $status,
-                  #       closedAt: $closedAt,
-                  #       updatedAt: $updatedAt,
-                  #       mergedAt: $mergedAt,
-                  #       createdAt: $createdAt,
-                  #       link: $link,
-                  #       prNumber: ($prNumber | tonumber),
-                  #       branch: $branch
-                  #     },
-                  #     relations: {
-                  #       repository: $repoIdentifier
-                  #     }
-                  #   }')
-      
-                  # echo "Sending PR $PR_NUMBER from $REPO to Port API..."
-                  # curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
-                  #   --header "Authorization: Bearer ${{ secrets.PORT_ACCESS_TOKEN }}" \
-                  #   --header "Content-Type: application/json" \
-                  #   --data-raw "$JSON_PAYLOAD"
+                  PR_CREATOR=$(echo "$PR" | jq -r '.user.login')
       
                 curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
                   --header "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
@@ -248,6 +204,10 @@ jobs:
                       \"link\": \"${PR_LINK}\",
                       \"prNumber\": ${PR_NUMBER},
                       \"branch\": \"${PR_BRANCH}\"
+                    },
+                    \"relations\": {
+                      \"repository\": \"${REPO_IDENTIFIER}\",
+                      \"git_hub_creator\": \"${PR_CREATOR}\"
                     }
                   }"
                 fi
@@ -257,10 +217,23 @@ jobs:
             done
           done
 
-          # if [[ -z "$FILTERED_PRS" ]]; then
-          #   FINAL_PR_DATA="[]"
-          # else
-          #   FINAL_PR_DATA=$(echo "$FILTERED_PRS" | jq -s -c .)
-          # fi
-          
-          #echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
+      - name: Inform entity upsert failure
+        if: steps.upsert_pr_entity.outcome == 'failure'
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.DORA_PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.DORA_PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).runId}}
+          logMessage: "Failed to report the created entities back to Port ..."
+
+      - name: Inform completion of pull request upsert
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.DORA_PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.DORA_PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).runId}}
+          logMessage: "Fetching of historical PR was successful ✅"
