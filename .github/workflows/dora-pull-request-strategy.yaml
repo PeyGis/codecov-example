@@ -71,10 +71,11 @@ jobs:
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
           REPOS=()
           PAGE=1
+          ORG=${{ github.repository_owner }}
 
           while :; do
             RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
-              "https://api.github.com/user/repos?per_page=100&page=$PAGE")
+              "https://api.github.com/users/$ORG/repos?per_page=100&page=$PAGE")
 
             NEW_REPOS=$(echo "$RESPONSE" | jq -r '.[].full_name')
             if [[ -z "$NEW_REPOS" ]]; then break; fi
@@ -88,6 +89,7 @@ jobs:
       - name: Fetch PR Data
         run: |
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
+          ORG=${{ github.repository_owner }}
           REPOS=(${{ env.REPO_LIST }})
           THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
           FILTERED_PRS=""
@@ -99,7 +101,7 @@ jobs:
 
             while true; do
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
-                "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
+                "https://api.github.com/repos/$ORG/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
 
               # Convert JSON response into an array (to avoid broken pipe issues)
               PR_LIST=()
