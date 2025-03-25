@@ -120,14 +120,23 @@ jobs:
               echo "null"
             fi
           }
-
+          
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
             PAGE=1
-
+      
             while true; do
+
+              PR_STATE_FILTER="all" # Default to 'all' if no status filter is provided
+              
+              if [[ "$PR_STATUS_OP" == "is" ]]; then
+                PR_STATE_FILTER="$PR_STATUS_VALUE"
+              elif [[ "$PR_STATUS_OP" == "isn't" ]]; then
+                PR_STATE_FILTER=$([[ "$PR_STATUS_VALUE" == "closed" ]] && echo "open" || echo "closed")
+              fi
+              
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
-                "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
+                "https://api.github.com/repos/$REPO/pulls?state=$PR_STATE_FILTER&per_page=100&page=$PAGE")
 
               # Convert JSON response into an array (to avoid broken pipe issues)
               PR_LIST=()
