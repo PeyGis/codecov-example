@@ -95,30 +95,31 @@ jobs:
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
             PAGE=1
-            STOP_FETCHING=false
 
-            while [[ "$STOP_FETCHING" == "false" ]]; do
+            while true; do
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
 
-              # If no PRs are returned, stop fetching
-              if [[ "$(echo "$RESPONSE" | jq length)" -eq 0 ]]; then
+              # Convert JSON response into an array (to avoid broken pipe issues)
+              PR_LIST=()
+              while IFS= read -r PR; do
+                PR_LIST+=("$PR")
+              done < <(echo "$RESPONSE" | jq -c '.[]')
+
+              # Stop if no more PRs are found
+              if [[ "${#PR_LIST[@]}" -eq 0 ]]; then
                 echo "No more PRs found for $REPO. Moving to the next repo..."
                 break
               fi
 
-              # Store JSON array in a variable first to avoid broken pipe issue
-              PR_LIST=$(echo "$RESPONSE" | jq -c '.[]')
-
-              echo "$PR_LIST" | while IFS= read -r PR; do
+              for PR in "${PR_LIST[@]}"; do
                 echo "Processing PR..."
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
                 echo "Created at: $PR_CREATED_AT"
 
                 if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
                   echo "PR is older than 3 months. Stopping further fetch for $REPO."
-                  STOP_FETCHING=true
-                  break
+                  break 2  # Exit both loops
                 fi
 
                 PR_MATCHES_FILTERS=true
@@ -148,12 +149,7 @@ jobs:
                 if $PR_MATCHES_FILTERS; then
                   FILTERED_PRS+="$PR"$'\n'
                 fi
-              done <<< "$PR_LIST"  # Pass JSON array into while loop safely
-
-              # If we decided to stop fetching, break the outer loop
-              if [[ "$STOP_FETCHING" == "true" ]]; then
-                break
-              fi
+              done
 
               ((PAGE++))
             done
@@ -166,3 +162,4 @@ jobs:
           fi
 
           echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
+
