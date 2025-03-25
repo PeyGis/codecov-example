@@ -116,6 +116,10 @@ jobs:
               fi
       
               INDEX=0
+              set -e
+              set -o pipefail
+              set -x  # Debugging mode
+              
               while [[ "$INDEX" -lt "$PR_COUNT" ]]; do
                 PR=$(echo "$RESPONSE" | jq -c ".[$INDEX]")
               
@@ -141,14 +145,22 @@ jobs:
                   break
                 fi
               
-                # ✅ Safe JSON appending
                 echo "PR Data: $PR"
-                FILTERED_PRS=$(echo "$FILTERED_PRS" | jq --argjson newPR "$PR" '. + [$newPR]')
+              
+                # ✅ Fix: Ensure valid JSON before appending
+                NEW_FILTERED_PRS=$(jq --argjson newPR "$PR" '. + [$newPR]' <<< "$FILTERED_PRS" 2>/dev/null || echo "$FILTERED_PRS")
+                
+                if [[ -n "$NEW_FILTERED_PRS" ]]; then
+                  FILTERED_PRS="$NEW_FILTERED_PRS"
+                else
+                  echo "⚠ Warning: Failed to append PR data. Retaining original list."
+                fi
+              
                 echo "✅ After PR Data Successfully Added"
               
                 ((INDEX++))
               done
-      
+
               if [[ "$STOP_FETCHING" == "true" ]]; then
                 break
               fi
