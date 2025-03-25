@@ -131,7 +131,7 @@ jobs:
               
               if [[ "$PR_STATUS_OP" == "is" ]]; then
                 PR_STATE_FILTER="$PR_STATUS_VALUE"
-              elif [[ "$PR_STATUS_OP" == "isn't" ]]; then
+              elif [[ "$PR_STATUS_OP" == "is not" ]]; then
                 PR_STATE_FILTER=$([[ "$PR_STATUS_VALUE" == "closed" ]] && echo "open" || echo "closed")
               fi
               
@@ -173,14 +173,14 @@ jobs:
                 PR_LABELS=$(echo "$PR" | jq -r '[.labels[].name] | join(",")')
                 if [[ "$PR_LABEL_OP" == "contains" && "$PR_LABELS" != *"$PR_LABEL_VALUE"* ]]; then
                   PR_MATCHES_FILTERS=false
-                elif [[ "$PR_LABEL_OP" == "doesn't contain" && "$PR_LABELS" == *"$PR_LABEL_VALUE"* ]]; then
+                elif [[ "$PR_LABEL_OP" == "does not contain" && "$PR_LABELS" == *"$PR_LABEL_VALUE"* ]]; then
                   PR_MATCHES_FILTERS=false
                 fi
 
                 PR_AUTHOR=$(echo "$PR" | jq -r '.user.login')
                 if [[ "$PR_AUTHOR_OP" == "is" && "$PR_AUTHOR" != "$PR_AUTHORS" ]]; then
                   PR_MATCHES_FILTERS=false
-                elif [[ "$PR_AUTHOR_OP" == "isn't" && "$PR_AUTHOR" == "$PR_AUTHORS" ]]; then
+                elif [[ "$PR_AUTHOR_OP" == "is not" && "$PR_AUTHOR" == "$PR_AUTHORS" ]]; then
                   PR_MATCHES_FILTERS=false
                 fi
 
