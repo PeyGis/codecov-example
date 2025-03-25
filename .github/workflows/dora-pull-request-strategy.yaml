@@ -95,6 +95,14 @@ jobs:
           FILTERED_PRS=""
           BLUEPRINT_ID="githubPullRequest"
 
+          format_date() {
+            if [[ -n "$1" && "$1" != "null" ]]; then
+              date -u -d "$1" +"%Y-%m-%dT%H:%M:%S.%3NZ"
+            else
+              echo "null"
+            fi
+          }
+
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
             PAGE=1
@@ -153,7 +161,7 @@ jobs:
                 #   FILTERED_PRS+="$PR"$'\n'
                 # fi
                 if $PR_MATCHES_FILTERS; then
-                  PR_ID=$(echo "$PR" | jq -r '.id')
+                  PR_IDENTIFIER=$(echo "$PR" | jq -r '.id')
                   PR_TITLE=$(echo "$PR" | jq -r '.title')
                   PR_NUMBER=$(echo "$PR" | jq -r '.number')
                   PR_LINK=$(echo "$PR" | jq -r '.html_url')
@@ -164,49 +172,67 @@ jobs:
                   # PR_MERGED_AT=$(echo "$PR" | jq -r '.merged_at')
                   PR_STATUS=$(echo "$PR" | jq -r '.state')
                   REPO_IDENTIFIER=$(echo "$PR" | jq -r '.head.repo.full_name')
-                  PR_MERGED_AT=$(echo "$PR" | jq -r '.merged_at | if . then . + ".000Z" | sub("Z000Z$"; "Z") else null end')
-                  PR_CLOSED_AT=$(echo "$PR" | jq -r '.closed_at | if . then . + ".000Z" | sub("Z000Z$"; "Z") else null end')
-                  PR_UPDATED_AT=$(echo "$PR" | jq -r '.updated_at | if . then . + ".000Z" | sub("Z000Z$"; "Z") else null end')
-                  PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at | if . then . + ".000Z" | sub("Z000Z$"; "Z") else null end')
-
+                  PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at // empty')
+                  PR_MERGED_AT=$(echo "$PR" | jq -r '.merged_at // empty')
+                  PR_CLOSED_AT=$(echo "$PR" | jq -r '.closed_at // empty')
+  
+                  PR_CREATED_AT=$(format_date "$PR_CREATED_AT")
+                  PR_MERGED_AT=$(format_date "$PR_MERGED_AT")
+                  PR_CLOSED_AT=$(format_date "$PR_CLOSED_AT")
       
-                  JSON_PAYLOAD=$(jq -n \
-                    --arg identifier "$PR_ID" \
-                    --arg title "$PR_TITLE" \
-                    --arg status "$PR_STATUS" \
-                    --arg closedAt "$PR_CLOSED_AT" \
-                    --arg updatedAt "$PR_UPDATED_AT" \
-                    --arg mergedAt "$PR_MERGED_AT" \
-                    --arg createdAt "$PR_CREATED_AT" \
-                    --arg link "$PR_LINK" \
-                    --arg prNumber "$PR_NUMBER" \
-                    --arg branch "$PR_BRANCH" \
-                    --arg repoIdentifier "$REPO_IDENTIFIER" \
-                    '{
-                      identifier: $identifier,
-                      title: $title,
-                      properties: {
-                        status: $status,
-                        closedAt: $closedAt,
-                        updatedAt: $updatedAt,
-                        mergedAt: $mergedAt,
-                        createdAt: $createdAt,
-                        link: $link,
-                        prNumber: ($prNumber | tonumber),
-                        branch: $branch
-                      },
-                      relations: {
-                        repository: $repoIdentifier
-                      }
-                    }')
+                  # JSON_PAYLOAD=$(jq -n \
+                  #   --arg identifier "$PR_ID" \
+                  #   --arg title "$PR_TITLE" \
+                  #   --arg status "$PR_STATUS" \
+                  #   --arg closedAt "$PR_CLOSED_AT" \
+                  #   --arg updatedAt "$PR_UPDATED_AT" \
+                  #   --arg mergedAt "$PR_MERGED_AT" \
+                  #   --arg createdAt "$PR_CREATED_AT" \
+                  #   --arg link "$PR_LINK" \
+                  #   --arg prNumber "$PR_NUMBER" \
+                  #   --arg branch "$PR_BRANCH" \
+                  #   --arg repoIdentifier "$REPO_IDENTIFIER" \
+                  #   '{
+                  #     identifier: $identifier,
+                  #     title: $title,
+                  #     properties: {
+                  #       status: $status,
+                  #       closedAt: $closedAt,
+                  #       updatedAt: $updatedAt,
+                  #       mergedAt: $mergedAt,
+                  #       createdAt: $createdAt,
+                  #       link: $link,
+                  #       prNumber: ($prNumber | tonumber),
+                  #       branch: $branch
+                  #     },
+                  #     relations: {
+                  #       repository: $repoIdentifier
+                  #     }
+                  #   }')
       
-                  echo "Sending PR $PR_NUMBER from $REPO to Port API..."
-                  curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
-                    --header "Authorization: Bearer ${{ secrets.PORT_ACCESS_TOKEN }}" \
-                    --header "Content-Type: application/json" \
-                    --data-raw "$JSON_PAYLOAD"
+                  # echo "Sending PR $PR_NUMBER from $REPO to Port API..."
+                  # curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
+                  #   --header "Authorization: Bearer ${{ secrets.PORT_ACCESS_TOKEN }}" \
+                  #   --header "Content-Type: application/json" \
+                  #   --data-raw "$JSON_PAYLOAD"
       
-                  echo "PR $PR_NUMBER successfully sent!"
+                curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
+                  --header "Authorization: Bearer ${{ secrets.PORT_ACCESS_TOKEN }}" \
+                  --header "Content-Type: application/json" \
+                  --data-raw "{
+                    \"identifier\": \"${PR_IDENTIFIER}\",
+                    \"title\": \"${PR_TITLE}\",
+                    \"properties\": {
+                      \"status\": \"${PR_STATE}\",
+                      \"closedAt\": \"${PR_CLOSED_AT}\",
+                      \"updatedAt\": \"${PR_CLOSED_AT}\",
+                      \"mergedAt\": \"${PR_MERGED_AT}\",
+                      \"createdAt\": \"${PR_CREATED_AT}\",
+                      \"link\": \"${PR_URL}\",
+                      \"prNumber\": ${PR_NUMBER},
+                      \"branch\": \"${PR_BRANCH}\"
+                    }
+                  }"
                 fi
               done
 
