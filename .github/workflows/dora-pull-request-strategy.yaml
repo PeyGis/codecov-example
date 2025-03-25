@@ -90,7 +90,7 @@ jobs:
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
           REPOS=(${{ env.REPO_LIST }})
           THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
-          FILTERED_PRS=()
+          FILTERED_PRS=""
 
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
@@ -107,9 +107,10 @@ jobs:
                 break
               fi
 
-              # Process PRs using a safe loop (avoids jq broken pipe)
+              # Store JSON array in a variable first to avoid broken pipe issue
               PR_LIST=$(echo "$RESPONSE" | jq -c '.[]')
-              for PR in $PR_LIST; do
+
+              echo "$PR_LIST" | while IFS= read -r PR; do
                 echo "Processing PR..."
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
                 echo "Created at: $PR_CREATED_AT"
@@ -145,9 +146,9 @@ jobs:
                 fi
 
                 if $PR_MATCHES_FILTERS; then
-                  FILTERED_PRS+=("$PR")
+                  FILTERED_PRS+="$PR"$'\n'
                 fi
-              done
+              done <<< "$PR_LIST"  # Pass JSON array into while loop safely
 
               # If we decided to stop fetching, break the outer loop
               if [[ "$STOP_FETCHING" == "true" ]]; then
@@ -158,10 +159,10 @@ jobs:
             done
           done
 
-          if [[ ${#FILTERED_PRS[@]} -eq 0 ]]; then
+          if [[ -z "$FILTERED_PRS" ]]; then
             FINAL_PR_DATA="[]"
           else
-            FINAL_PR_DATA=$(printf '%s\n' "${FILTERED_PRS[@]}" | jq -s .)
+            FINAL_PR_DATA=$(echo "$FILTERED_PRS" | jq -s .)
           fi
 
           echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
