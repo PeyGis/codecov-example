@@ -98,7 +98,7 @@ jobs:
             while :; do
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
-              PRS=$(echo "$RESPONSE" | jq -c '.[]')
+              PRS=($(echo "$RESPONSE" | jq -c '.[]' | tr '\n' ' '))
           
               for PR in $PRS; do
                 echo "print this pr"
