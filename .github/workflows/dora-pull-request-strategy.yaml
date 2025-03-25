@@ -93,7 +93,7 @@ jobs:
           FILTERED_PRS=""
           
           for REPO in "${REPOS[@]}"; do
-            echo $REPO
+            echo "$REPO"
             PAGE=1
             while :; do
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
