@@ -118,33 +118,34 @@ jobs:
               INDEX=0
               while [[ "$INDEX" -lt "$PR_COUNT" ]]; do
                 PR=$(echo "$RESPONSE" | jq -c ".[$INDEX]")
-      
+              
                 if ! echo "$PR" | jq empty 2>/dev/null; then
                   echo "⚠ Warning: Skipping malformed PR JSON"
                   ((INDEX++))
                   continue
                 fi
-      
+              
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at // empty')
                 if [[ -z "$PR_CREATED_AT" ]]; then
                   echo "⚠ Warning: Missing created_at field for PR. Skipping..."
                   ((INDEX++))
                   continue
                 fi
-      
+              
                 echo "Processing PR..."
                 echo "Created at: $PR_CREATED_AT"
-      
+              
                 if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
                   echo "PR is older than 3 months. Stopping further fetch for $REPO."
                   STOP_FETCHING=true
                   break
                 fi
-      
-                # ✅ Fix: Append PR safely
+              
+                # ✅ Safe JSON appending
                 echo "PR Data: $PR"
-                FILTERED_PRS=$(jq --argjson newPR "$PR" '. + [$newPR]' <<< "$FILTERED_PRS")
-                echo "❌ After PR Data"
+                FILTERED_PRS=$(echo "$FILTERED_PRS" | jq --argjson newPR "$PR" '. + [$newPR]')
+                echo "✅ After PR Data Successfully Added"
+              
                 ((INDEX++))
               done
       
