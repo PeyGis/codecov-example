@@ -196,7 +196,7 @@ jobs:
                     }')
       
                   echo "Sending PR $PR_NUMBER from $REPO to Port API..."
-                  curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true" \
+                  curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
                     --header "Authorization: Bearer $PORT_ACCESS_TOKEN" \
                     --header "Content-Type: application/json" \
                     --data-raw "$JSON_PAYLOAD"
