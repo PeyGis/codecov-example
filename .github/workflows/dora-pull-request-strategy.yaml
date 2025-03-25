@@ -141,15 +141,10 @@ jobs:
                   break
                 fi
       
-                # ✅ Fix: Validate `FILTERED_PRS` before appending
-                if ! echo "$FILTERED_PRS" | jq empty 2>/dev/null; then
-                  echo "❌ ERROR: FILTERED_PRS is corrupted. Resetting..."
-                  FILTERED_PRS="[]"
-                fi
-      
                 # ✅ Fix: Append PR safely
+                echo "PR Data: $PR"
                 FILTERED_PRS=$(jq --argjson newPR "$PR" '. + [$newPR]' <<< "$FILTERED_PRS")
-      
+                echo "❌ After PR Data"
                 ((INDEX++))
               done
       
