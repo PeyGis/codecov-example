@@ -99,9 +99,9 @@ jobs:
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
               PRS=$(echo "$RESPONSE" | jq -c '.[]')
-              echo "$RESPONSE" | jq .
           
               for PR in $PRS; do
+                echo "print this pr"
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
                 echo "$PR_CREATED_AT"
           
