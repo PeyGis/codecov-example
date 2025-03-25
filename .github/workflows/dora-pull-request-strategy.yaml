@@ -51,7 +51,7 @@ jobs:
           PR_LABEL_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_label_op // empty')
           PR_LABEL_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_label_str // empty')
           PR_REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_repo_op // empty')
-          PR_REPO_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_repo_str // empty')
+          PR_REPO_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_repository[0].identifier // empty')
 
           echo "DEPLOY_BRANCH=$DEPLOY_BRANCH" >> "$GITHUB_ENV"
           echo "PR_RULES_FIELDS=$PR_RULES_FIELDS" >> "$GITHUB_ENV"
@@ -86,6 +86,11 @@ jobs:
 
           echo "REPO_LIST=${REPOS[*]}" >> "$GITHUB_ENV"
 
+      - name: Set Single Repo if Repository Filter Exists
+        if: ${{ contains(env.PR_RULES_FIELDS, 'Repository') }}
+        run: |
+          echo "REPO_LIST=${{ env.PR_REPO_VALUE }}" >> "$GITHUB_ENV"
+          
       - name: Fetch PR Data
         run: |
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
