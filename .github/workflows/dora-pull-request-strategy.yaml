@@ -166,7 +166,7 @@ jobs:
                   REPO_IDENTIFIER=$(echo "$REPO" | tr '/' '-')
       
                   JSON_PAYLOAD=$(jq -n \
-                    --arg identifier "$REPO_IDENTIFIER-pr-$PR_NUMBER" \
+                    --arg identifier "$PR_ID" \
                     --arg title "$PR_TITLE" \
                     --arg status "$PR_STATUS" \
                     --arg closedAt "$PR_CLOSED_AT" \
@@ -191,13 +191,13 @@ jobs:
                         branch: $branch
                       },
                       relations: {
-                        repository: $repoIdentifier
+                        repository: $REPO
                       }
                     }')
       
                   echo "Sending PR $PR_NUMBER from $REPO to Port API..."
                   curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
-                    --header "Authorization: Bearer $PORT_ACCESS_TOKEN" \
+                    --header "Authorization: Bearer ${{ secrets.PORT_ACCESS_TOKEN }}" \
                     --header "Content-Type: application/json" \
                     --data-raw "$JSON_PAYLOAD"
       
