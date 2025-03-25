@@ -99,6 +99,17 @@ jobs:
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
               PRS=($(echo "$RESPONSE" | jq -c '.[]' | tr '\n' ' '))
+
+              echo "$RESPONSE" | jq -c '.[]' | while IFS= read -r PR; do
+                echo "print this pr"
+                PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
+                echo "Created at: $PR_CREATED_AT"
+                
+                if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
+                  break 2  # Stop fetching for this repo
+                fi
+              done
+
           
               for PR in $PRS; do
                 echo "print this pr"
