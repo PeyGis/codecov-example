@@ -90,7 +90,8 @@ jobs:
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
           REPOS=(${{ env.REPO_LIST }})
           THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
-          FILTERED_PRS=""
+          
+          FILTERED_PRS="[]"
       
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
@@ -101,19 +102,14 @@ jobs:
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/pulls?state=closed&per_page=100&page=$PAGE")
       
-              # 🚨 Check if response is empty or contains an error
-              if [[ -z "$RESPONSE" || "$RESPONSE" == "null" ]]; then
-                echo "⚠ Warning: Empty response from GitHub API. Possible rate limit or auth issue."
-                break
-              elif echo "$RESPONSE" | jq empty 2>/dev/null; then
-                echo "✅ Valid JSON response received."
-              else
-                echo "❌ Error: Invalid JSON response from GitHub API. Dumping response:"
+              # 🚨 Debugging: Ensure valid JSON response
+              if ! echo "$RESPONSE" | jq empty 2>/dev/null; then
+                echo "❌ Invalid JSON response. Dumping response for debugging:"
                 echo "$RESPONSE"
                 exit 1
               fi
+              echo "✅ Valid JSON response received."
       
-              # Extract PRs safely
               PR_COUNT=$(echo "$RESPONSE" | jq '. | length')
               if [[ "$PR_COUNT" -eq 0 ]]; then
                 echo "No more PRs found for $REPO. Moving to the next repo..."
@@ -124,8 +120,14 @@ jobs:
               while [[ "$INDEX" -lt "$PR_COUNT" ]]; do
                 PR=$(echo "$RESPONSE" | jq -c ".[$INDEX]")
       
+                PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at // empty')
+                if [[ -z "$PR_CREATED_AT" ]]; then
+                  echo "⚠ Warning: Missing created_at field for PR. Skipping..."
+                  ((INDEX++))
+                  continue
+                fi
+      
                 echo "Processing PR..."
-                PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
                 echo "Created at: $PR_CREATED_AT"
       
                 if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
@@ -134,32 +136,8 @@ jobs:
                   break
                 fi
       
-                PR_MATCHES_FILTERS=true
-                PR_STATUS=$(echo "$PR" | jq -r '.state')
-                PR_LABELS=$(echo "$PR" | jq -r '[.labels[].name] | join(",")')
-                PR_AUTHOR=$(echo "$PR" | jq -r '.user.login')
-      
-                if [[ "$PR_STATUS_OP" == "is" && "$PR_STATUS" != "$PR_STATUS_VALUE" ]]; then
-                  PR_MATCHES_FILTERS=false
-                elif [[ "$PR_STATUS_OP" == "isn't" && "$PR_STATUS" == "$PR_STATUS_VALUE" ]]; then
-                  PR_MATCHES_FILTERS=false
-                fi
-      
-                if [[ "$PR_LABEL_OP" == "contains" && "$PR_LABELS" != *"$PR_LABEL_VALUE"* ]]; then
-                  PR_MATCHES_FILTERS=false
-                elif [[ "$PR_LABEL_OP" == "doesn't contain" && "$PR_LABELS" == *"$PR_LABEL_VALUE"* ]]; then
-                  PR_MATCHES_FILTERS=false
-                fi
-      
-                if [[ "$PR_AUTHOR_OP" == "is" && "$PR_AUTHOR" != "$PR_AUTHORS" ]]; then
-                  PR_MATCHES_FILTERS=false
-                elif [[ "$PR_AUTHOR_OP" == "isn't" && "$PR_AUTHOR" == "$PR_AUTHORS" ]]; then
-                  PR_MATCHES_FILTERS=false
-                fi
-      
-                if $PR_MATCHES_FILTERS; then
-                  FILTERED_PRS+="$PR"$'\n'
-                fi
+                # ✅ Fix: Append PR correctly as a JSON array
+                FILTERED_PRS=$(echo "$FILTERED_PRS" | jq --argjson newPR "$PR" '. + [$newPR]')
       
                 ((INDEX++))
               done
@@ -169,17 +147,11 @@ jobs:
               fi
       
               ((PAGE++))
-              sleep 1  # Rate limit handling
+              sleep 1
             done
           done
       
-          if [[ -z "$FILTERED_PRS" ]]; then
-            FINAL_PR_DATA="[]"
-          else
-            FINAL_PR_DATA=$(echo "$FILTERED_PRS" | jq -s .)
-          fi
-      
-          echo "FINAL_PR_DATA=$FINAL_PR_DATA" >> "$GITHUB_ENV"
+          echo "FINAL_PR_DATA=$FILTERED_PRS" >> "$GITHUB_ENV"
 
       - name: Send Data to Port
         run: |
