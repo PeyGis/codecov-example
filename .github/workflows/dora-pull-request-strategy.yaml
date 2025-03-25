@@ -141,8 +141,6 @@ jobs:
                   break
                 fi
               
-                echo "PR Data: $PR"
-              
                 # ✅ Fix: Ensure valid JSON before appending
                 NEW_FILTERED_PRS=$(jq --argjson newPR "$PR" '. + [$newPR]' <<< "$FILTERED_PRS" 2>/dev/null || echo "$FILTERED_PRS")
                 
