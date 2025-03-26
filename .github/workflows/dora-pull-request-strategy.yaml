@@ -41,19 +41,20 @@ jobs:
 
           echo "PORT_ACCESS_TOKEN=$PORT_ACCESS_TOKEN" >> "$GITHUB_ENV"
           
-      - name: Parse Input Configuration
-        id: parse_config
-        run: |
-          echo '${{ inputs.config }}' > config.json
-          CONFIG_JSON=$(jq -c . config.json)  # Proper JSON parsing
-          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
-          
       # - name: Parse Input Configuration
       #   id: parse_config
       #   run: |
-      #     printf '%s\n' '${{ inputs.config }}' > config.json
+      #     echo '${{ inputs.config }}' > config.json
       #     CONFIG_JSON=$(jq -c . config.json)  # Proper JSON parsing
       #     echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
+          
+      - name: Parse Input Configuration
+        id: parse_config
+        run: |
+          echo '${{ inputs.config }}' | jq -cR 'fromjson?' > config.json
+          CONFIG_JSON=$(cat config.json)
+          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
+
       
             
 
