@@ -60,13 +60,14 @@ jobs:
           PR_STATUS_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_status_op // empty')
           PR_STATUS_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_status_options // empty')
           PR_AUTHOR_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_author_op // empty')
-          PR_AUTHORS=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_author[].identifier // []')
+          PR_AUTHORS=$(echo "$CONFIG_JSON" | jq -r 'if .pr_rules_author then .pr_rules_author[].identifier else empty end')
           PR_LABEL_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_label_op // empty')
           PR_LABEL_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_label_str // empty')
           PR_TITLE_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_title_op // empty')
           PR_TITLE_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_title_str // empty')
           PR_REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_repo_op // empty')
-          PR_REPO_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_repository[].identifier // []')
+          PR_REPO_VALUE=$(echo "$CONFIG_JSON" | jq -r 'if .pr_rules_repository then .pr_rules_repository[].identifier else empty end')
+
 
           echo "DEPLOY_BRANCH=$DEPLOY_BRANCH" >> "$GITHUB_ENV"
           echo "PR_RULES_FIELDS=$PR_RULES_FIELDS" >> "$GITHUB_ENV"
