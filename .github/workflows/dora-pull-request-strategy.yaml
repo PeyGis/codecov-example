@@ -52,8 +52,10 @@ jobs:
         id: parse_config
         run: |
             echo '${{ inputs.config }}' | jq -cR 'fromjson?' > config.json
-            CONFIG_JSON=$(cat config.json | sed 's/"/\\"/g')
-            echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
+            echo "CONFIG_JSON<<EOF" >> "$GITHUB_ENV"
+            cat config.json >> "$GITHUB_ENV"
+            echo "EOF" >> "$GITHUB_ENV"
+
 
       - name: Extract Filters from JSON
         id: extract_filters
