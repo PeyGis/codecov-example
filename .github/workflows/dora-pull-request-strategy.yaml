@@ -60,7 +60,7 @@ jobs:
           PR_STATUS_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_status_op // empty')
           PR_STATUS_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_status_options // empty')
           PR_AUTHOR_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_author_op // empty')
-          PR_AUTHORS=$(echo "$CONFIG_JSON" | jq -c 'if .pr_rules_author then .pr_rules_author[].identifier else empty end')
+          PR_AUTHORS=$(echo "$CONFIG_JSON" | jq -c 'if .pr_rules_author then [.pr_rules_author[].identifier] else [] end')
           PR_LABEL_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_label_op // empty')
           PR_LABEL_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_label_str // empty')
           PR_TITLE_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_title_op // empty')
