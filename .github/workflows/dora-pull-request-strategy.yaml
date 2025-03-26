@@ -208,6 +208,7 @@ jobs:
                 AUTHOR_MATCH=false
                 
                 for AUTHOR in "${PR_AUTHORS[@]}"; do
+                  echo "$AUTHOR"
                   case "$PR_AUTHOR_OP" in
                     "is") [[ "$PR_AUTHOR" == "$AUTHOR" ]] && AUTHOR_MATCH=true && break ;;
                     "is not") [[ "$PR_AUTHOR" == "$AUTHOR" ]] && AUTHOR_MATCH=false ;;
