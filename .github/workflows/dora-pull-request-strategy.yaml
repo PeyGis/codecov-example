@@ -63,6 +63,8 @@ jobs:
           PR_AUTHORS=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_author[].identifier // []')
           PR_LABEL_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_label_op // empty')
           PR_LABEL_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_label_str // empty')
+          PR_TITLE_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_title_op // empty')
+          PR_TITLE_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_title_str // empty')
           PR_REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_repo_op // empty')
           PR_REPO_VALUE=$(echo "$CONFIG_JSON" | jq -r '.pr_rules_repository[].identifier // []')
 
@@ -74,6 +76,8 @@ jobs:
           echo "PR_AUTHORS=$PR_AUTHORS" >> "$GITHUB_ENV"
           echo "PR_LABEL_OP=$PR_LABEL_OP" >> "$GITHUB_ENV"
           echo "PR_LABEL_VALUE=$PR_LABEL_VALUE" >> "$GITHUB_ENV"
+          echo "PR_TITLE_OP=$PR_TITLE_OP" >> "$GITHUB_ENV"
+          echo "PR_TITLE_VALUE=$PR_TITLE_VALUE" >> "$GITHUB_ENV"
           echo "PR_REPO_OP=$PR_REPO_OP" >> "$GITHUB_ENV"
           echo "PR_REPO_VALUE=$PR_REPO_VALUE" >> "$GITHUB_ENV"
 
