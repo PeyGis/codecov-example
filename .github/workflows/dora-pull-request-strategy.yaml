@@ -51,9 +51,10 @@ jobs:
       - name: Parse Input Configuration
         id: parse_config
         run: |
-            CLEAN_JSON=$(echo '${{ inputs.config }}' | sed 's/[][()<>]//g')
-            echo "$CLEAN_JSON" | jq -cR 'fromjson?' > config.json
-            echo "CONFIG_JSON=$(cat config.json)" >> "$GITHUB_ENV"
+            SANITIZED_CONFIG=$(echo '${{ inputs.config }}' | sed 's/[()\[\]]//g')
+            echo "$SANITIZED_CONFIG" | jq -cR 'gsub("[\n\r]"; "") | fromjson?' > config.json
+            echo "CONFIG_JSON=$(jq -c . config.json)" >> "$GITHUB_ENV"
+      
 
       - name: Extract Filters from JSON
         id: extract_filters
