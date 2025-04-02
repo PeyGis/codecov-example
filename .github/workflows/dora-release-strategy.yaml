@@ -126,7 +126,8 @@ jobs:
               fi
 
               for RELEASE in "${RELEASE_LIST[@]}"; do
-                RELEASE_CREATED_AT=$(echo "$RELEASE" | jq -r '.created_at')
+                # RELEASE_CREATED_AT=$(echo "$RELEASE" | jq -r '.created_at')
+                RELEASE_CREATED_AT=$(echo "$RELEASE" | jq -r '.created_at? // empty')
                 if [[ "$RELEASE_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
                   break 2
                 fi
