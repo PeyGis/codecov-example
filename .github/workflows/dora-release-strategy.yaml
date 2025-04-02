@@ -1,0 +1,237 @@
+name: Fetch and Send Release Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: 'JSON input configuration for fetching Releases'
+        required: true
+        type: string
+      port_payload:
+        required: true
+        description: Port's payload, including details for who triggered the action and general context (blueprint, run id, etc...)
+
+jobs:
+  fetch-releases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Inform execution of request to fetch historical release data
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.DORA_PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.DORA_PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).runId}}
+          logMessage: "About to fetch release data from GitHub..."
+
+      - name: Fetch Port Access Token
+        id: fetch_port_token
+        run: |
+          PORT_ACCESS_TOKEN=$(curl -s -L 'https://api.getport.io/v1/auth/access_token' \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json' \
+            -d '{
+              "clientId": "${{ secrets.DORA_PORT_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.DORA_PORT_CLIENT_SECRET }}"
+            }' | jq -r '.accessToken')
+
+          echo "PORT_ACCESS_TOKEN=$PORT_ACCESS_TOKEN" >> "$GITHUB_ENV"
+          
+      - name: Parse Input Configuration
+        id: parse_config
+        run: |
+          echo '${{ inputs.config }}' > config.json
+          CONFIG_JSON=$(jq -c . config.json)  # Proper JSON parsing
+          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
+      
+      - name: Extract Filters from JSON
+        id: extract_filters
+        run: |
+          CONFIG_JSON=$(echo '${{ env.CONFIG_JSON }}' | jq -c .)
+
+          # Extract individual fields
+          RELEASE_RULES_FIELDS=$(echo "$CONFIG_JSON" | jq -c '.release_rules_fields // []')
+          RELEASE_AUTHOR_OP=$(echo "$CONFIG_JSON" | jq -r '.release_rules_author_op // empty')
+          RELEASE_AUTHOR_STR=$(echo "$CONFIG_JSON" | jq -r '.release_rules_author_str // empty')
+          RELEASE_TAG_OP=$(echo "$CONFIG_JSON" | jq -r '.release_rules_tag_op // empty')
+          RELEASE_TAG_STR=$(echo "$CONFIG_JSON" | jq -r '.release_rules_tag_str // empty')
+          RELEASE_TARGET_OP=$(echo "$CONFIG_JSON" | jq -r '.release_rules_target_op // empty')
+          RELEASE_TARGET_STR=$(echo "$CONFIG_JSON" | jq -r '.release_rules_target_str // empty')
+          RELEASE_REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.release_rules_repo_op // empty')
+          RELEASE_REPO_VALUE=$(echo "$CONFIG_JSON" | jq -r 'if .release_rules_repository then .release_rules_repository | map(.identifier) | join(" ") else "" end')
+
+          echo "RELEASE_RULES_FIELDS=$RELEASE_RULES_FIELDS" >> "$GITHUB_ENV"
+          echo "RELEASE_AUTHOR_OP=$RELEASE_AUTHOR_OP" >> "$GITHUB_ENV"
+          echo "RELEASE_AUTHOR_STR=$RELEASE_AUTHOR_STR" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG_OP=$RELEASE_TAG_OP" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG_STR=$RELEASE_TAG_STR" >> "$GITHUB_ENV"
+          echo "RELEASE_TARGET_OP=$RELEASE_TARGET_OP" >> "$GITHUB_ENV"
+          echo "RELEASE_TARGET_STR=$RELEASE_TARGET_STR" >> "$GITHUB_ENV"
+          echo "RELEASE_REPO_OP=$RELEASE_REPO_OP" >> "$GITHUB_ENV"
+          echo "RELEASE_REPO_VALUE=$RELEASE_REPO_VALUE" >> "$GITHUB_ENV"
+
+      - name: Fetch All Repositories (if no repo filter applied)
+        if: ${{ !contains(env.RELEASE_RULES_FIELDS, 'Repository') }}
+        id: fetch_repos
+        run: |
+          GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
+          REPOS=()
+          PAGE=1
+          ORG=${{ github.repository_owner }}
+
+          while :; do
+            RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/users/$ORG/repos?per_page=100&page=$PAGE")
+
+            NEW_REPOS=$(echo "$RESPONSE" | jq -r '.[].full_name')
+            if [[ -z "$NEW_REPOS" ]]; then break; fi
+
+            REPOS+=($NEW_REPOS)
+            ((PAGE++))
+          done
+
+          echo "REPO_LIST=${REPOS[*]}" >> "$GITHUB_ENV"
+
+      - name: Set Single Repo if Repository Filter Exists
+        if: ${{ contains(env.RELEASE_RULES_FIELDS, 'Repository') }}
+        run: |
+          echo "REPO_LIST=${{ env.RELEASE_REPO_VALUE }}" >> "$GITHUB_ENV"
+          
+      - name: Fetch Release Data
+        id: upsert_release_entity
+        run: |
+          GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
+          REPOS=(${{ env.REPO_LIST }})
+          THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
+          BLUEPRINT_ID="githubRelease"
+
+          format_date() {
+            if [[ -n "$1" && "$1" != "null" ]]; then
+              date -u -d "$1" +"%Y-%m-%dT%H:%M:%S.%3NZ"
+            else
+              echo "null"
+            fi
+          }
+          
+          for REPO in "${REPOS[@]}"; do
+            echo "Processing repo: $REPO"
+            PAGE=1
+
+            while true; do
+              RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+                "https://api.github.com/repos/$REPO/releases?per_page=100&page=$PAGE")
+
+              RELEASE_LIST=()
+              while IFS= read -r RELEASE; do
+                RELEASE_LIST+=("$RELEASE")
+              done < <(echo "$RESPONSE" | jq -c '.[]')
+
+              if [[ "${#RELEASE_LIST[@]}" -eq 0 ]]; then
+                break
+              fi
+
+              for RELEASE in "${RELEASE_LIST[@]}"; do
+                RELEASE_CREATED_AT=$(echo "$RELEASE" | jq -r '.created_at')
+                if [[ "$RELEASE_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
+                  break 2
+                fi
+
+                RELEASE_MATCHES_FILTERS=true
+
+                # Apply Author filter
+                if [[ -n "$RELEASE_AUTHOR_OP" ]]; then
+                  AUTHOR=$(echo "$RELEASE" | jq -r '.author.login')
+                  case "$RELEASE_AUTHOR_OP" in
+                    "equals") [[ "$AUTHOR" != "$RELEASE_AUTHOR_STR" ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "contains") [[ "$AUTHOR" != *"$RELEASE_AUTHOR_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "starts with") [[ "$AUTHOR" != "$RELEASE_AUTHOR_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "does not contain") [[ "$AUTHOR" == *"$RELEASE_AUTHOR_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "does not start with") [[ "$AUTHOR" == "$RELEASE_AUTHOR_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                  esac
+                fi
+
+                # Apply Tag filter
+                if [[ -n "$RELEASE_TAG_OP" ]]; then
+                  TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+                  case "$RELEASE_TAG_OP" in
+                    "equals") [[ "$TAG" != "$RELEASE_TAG_STR" ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "contains") [[ "$TAG" != *"$RELEASE_TAG_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "starts with") [[ "$TAG" != "$RELEASE_TAG_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "does not contain") [[ "$TAG" == *"$RELEASE_TAG_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "does not start with") [[ "$TAG" == "$RELEASE_TAG_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                  esac
+                fi
+
+                # Apply Target Commitish filter
+                if [[ -n "$RELEASE_TARGET_OP" ]]; then
+                  TARGET=$(echo "$RELEASE" | jq -r '.target_commitish')
+                  case "$RELEASE_TARGET_OP" in
+                    "equals") [[ "$TARGET" != "$RELEASE_TARGET_STR" ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "contains") [[ "$TARGET" != *"$RELEASE_TARGET_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "starts with") [[ "$TARGET" != "$RELEASE_TARGET_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "does not contain") [[ "$TARGET" == *"$RELEASE_TARGET_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                    "does not start with") [[ "$TARGET" == "$RELEASE_TARGET_STR"* ]] && RELEASE_MATCHES_FILTERS=false ;;
+                  esac
+                fi
+
+                if $RELEASE_MATCHES_FILTERS; then
+                  RELEASE_ID=$(echo "$RELEASE" | jq -r '.id')
+                  RELEASE_NAME=$(echo "$RELEASE" | jq -r '.name')
+                  TAG_NAME=$(echo "$RELEASE" | jq -r '.tag_name')
+                  TARGET_COMMITISH=$(echo "$RELEASE" | jq -r '.target_commitish')
+                  CREATED_AT=$(echo "$RELEASE" | jq -r '.created_at')
+                  PUBLISHED_AT=$(echo "$RELEASE" | jq -r '.published_at')
+                  BODY=$(echo "$RELEASE" | jq -r '.body' | sed 's/"/\\"/g')
+                  AUTHOR=$(echo "$RELEASE" | jq -r '.author.login')
+                  HTML_URL=$(echo "$RELEASE" | jq -r '.html_url')
+
+                  curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
+                    --header "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
+                    --header "Content-Type: application/json" \
+                    --data-raw "{
+                      \"identifier\": \"${RELEASE_ID}\",
+                      \"title\": \"${RELEASE_NAME}\",
+                      \"properties\": {
+                        \"tagName\": \"${TAG_NAME}\",
+                        \"targetCommitish\": \"${TARGET_COMMITISH}\",
+                        \"publishedAt\": \"${PUBLISHED_AT}\",
+                        \"createdAt\": \"${CREATED_AT}\",
+                        \"body\": \"${BODY}\",
+                        \"url\": \"${HTML_URL}\"
+                      },
+                      \"relations\": {
+                        \"repository\": \"${REPO}\",
+                        \"author\": \"${AUTHOR}\"
+                      }
+                    }"
+                fi
+              done
+
+              ((PAGE++))
+            done
+          done
+
+      - name: Inform entity upsert failure
+        if: steps.upsert_release_entity.outcome == 'failure'
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.DORA_PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.DORA_PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).runId}}
+          logMessage: "Failed to report the created entities back to Port ..."
+
+      - name: Inform completion of release upsert
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.DORA_PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.DORA_PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).runId}}
+          logMessage: "Fetching of historical release was successful ✅"
