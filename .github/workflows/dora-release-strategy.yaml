@@ -106,7 +106,7 @@ jobs:
         run: |
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
           REPOS=(${{ env.REPO_LIST }})
-          THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
+          THREE_MONTHS_AGO=$(date -d '24 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
           BLUEPRINT_ID="githubRelease"
 
           format_date() {
