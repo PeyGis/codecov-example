@@ -107,7 +107,7 @@ jobs:
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
           REPOS=(${{ env.REPO_LIST }})
           THREE_MONTHS_AGO=$(date -d '24 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
-          BLUEPRINT_ID="githubRelease"
+          BLUEPRINT_ID="release"
 
           format_date() {
             if [[ -n "$1" && "$1" != "null" ]]; then
@@ -196,16 +196,13 @@ jobs:
                       \"identifier\": \"${RELEASE_ID}\",
                       \"title\": \"${RELEASE_NAME}\",
                       \"properties\": {
-                        \"tagName\": \"${TAG_NAME}\",
-                        \"targetCommitish\": \"${TARGET_COMMITISH}\",
-                        \"publishedAt\": \"${PUBLISHED_AT}\",
-                        \"createdAt\": \"${CREATED_AT}\",
-                        \"body\": \"${BODY}\",
-                        \"url\": \"${HTML_URL}\"
+                        \"author\": \"${AUTHOR}\",
+                        \"repository\": \"${REPO}\",
+                        \"release_creation_time\": \"${CREATED_AT}\",
+                        \"description\": \"${RELEASE_NAME}\",
+                        \"tag\": \"${TAG_NAME}\"
                       },
                       \"relations\": {
-                        \"repository\": \"${REPO}\",
-                        \"author\": \"${AUTHOR}\"
                       }
                     }"
                 fi
