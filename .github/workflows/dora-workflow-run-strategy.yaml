@@ -184,15 +184,15 @@ jobs:
                       \"identifier\": \"$RUN_ID\",
                       \"title\": \"$NAME\",
                       \"properties\": {
+                        \"triggeringActor\": \"$AUTHOR\",
+                        \"name\": \"$NAME\",
                         \"status\": \"$STATUS\",
                         \"conclusion\": \"$CONCLUSION\",
-                        \"start_time\": \"$CREATED_AT\",
-                        \"commit_hash\": \"$COMMIT_HASH\",
-                        \"run_url\": \"$HTML_URL\"
+                        \"runStartedAt\": \"$CREATED_AT\",
+                        \"createdAt\": \"$COMMIT_HASH\",
+                        \"link\": \"$HTML_URL\"
                       },
                       \"relations\": {
-                        \"repository\": \"$REPO\",
-                        \"author\": \"$AUTHOR\"
                       }
                     }"
                 fi
