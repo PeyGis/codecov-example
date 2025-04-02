@@ -83,7 +83,7 @@ jobs:
 
           while :; do
             RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
-              "https://api.github.com/orgs/$ORG/repos?per_page=100&page=$PAGE")
+              "https://api.github.com/users/$ORG/repos?per_page=100&page=$PAGE")
 
             NEW_REPOS=$(echo "$RESPONSE" | jq -r '.[].full_name')
             [[ -z "$NEW_REPOS" ]] && break
