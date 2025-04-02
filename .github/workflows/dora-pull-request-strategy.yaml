@@ -41,18 +41,18 @@ jobs:
 
           echo "PORT_ACCESS_TOKEN=$PORT_ACCESS_TOKEN" >> "$GITHUB_ENV"
           
-      # - name: Parse Input Configuration
-      #   id: parse_config
-      #   run: |
-      #     echo '${{ inputs.config }}' > config.json
-      #     CONFIG_JSON=$(jq -c . config.json)  # Proper JSON parsing
-      #     echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
-          
       - name: Parse Input Configuration
         id: parse_config
         run: |
-            CONFIG_JSON=$(echo '${{ inputs.config }}' | jq -cR 'fromjson?' | sed 's/[][(){}]//g')
-            echo "CONFIG_JSON=${CONFIG_JSON}" >> "$GITHUB_ENV"
+          echo '${{ inputs.config }}' > config.json
+          CONFIG_JSON=$(jq -c . config.json)  # Proper JSON parsing
+          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
+          
+      # - name: Parse Input Configuration
+      #   id: parse_config
+      #   run: |
+      #       CONFIG_JSON=$(echo '${{ inputs.config }}' | jq -cR 'fromjson?' | sed 's/[][(){}]//g')
+      #       echo "CONFIG_JSON=${CONFIG_JSON}" >> "$GITHUB_ENV"
       
       - name: Extract Filters from JSON
         id: extract_filters
