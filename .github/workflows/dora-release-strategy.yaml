@@ -108,14 +108,6 @@ jobs:
           REPOS=(${{ env.REPO_LIST }})
           THREE_MONTHS_AGO=$(date -d '24 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
           BLUEPRINT_ID="release"
-
-          format_date() {
-            if [[ -n "$1" && "$1" != "null" ]]; then
-              date -u -d "$1" +"%Y-%m-%dT%H:%M:%S.%3NZ"
-            else
-              echo "null"
-            fi
-          }
           
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
@@ -184,10 +176,8 @@ jobs:
                   TAG_NAME=$(echo "$RELEASE" | jq -r '.tag_name')
                   TARGET_COMMITISH=$(echo "$RELEASE" | jq -r '.target_commitish')
                   CREATED_AT=$(echo "$RELEASE" | jq -r '.created_at')
-                  PUBLISHED_AT=$(echo "$RELEASE" | jq -r '.published_at')
                   BODY=$(echo "$RELEASE" | jq -r '.body' | sed 's/"/\\"/g')
                   AUTHOR=$(echo "$RELEASE" | jq -r '.author.login')
-                  HTML_URL=$(echo "$RELEASE" | jq -r '.html_url')
 
                   curl --location --request POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
                     --header "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
@@ -199,7 +189,7 @@ jobs:
                         \"author\": \"${AUTHOR}\",
                         \"repository\": \"${REPO}\",
                         \"release_creation_time\": \"${CREATED_AT}\",
-                        \"description\": \"${RELEASE_NAME}\",
+                        \"description\": \"${BODY}\",
                         \"tag\": \"${TAG_NAME}\"
                       },
                       \"relations\": {
