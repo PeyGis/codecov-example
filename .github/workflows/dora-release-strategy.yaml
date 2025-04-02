@@ -41,36 +41,17 @@ jobs:
 
           echo "PORT_ACCESS_TOKEN=$PORT_ACCESS_TOKEN" >> "$GITHUB_ENV"
           
-      # - name: Parse Input Configuration
-      #   id: parse_config
-      #   run: |
-      #     echo '${{ inputs.config }}' > config.json
-      #     CONFIG_JSON=$(jq -c . config.json)  # Proper JSON parsing
-      #     echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
-
       - name: Parse Input Configuration
         id: parse_config
         run: |
-          # Safely parse input as JSON and validate
-          echo '${{ inputs.config }}' | jq -c 'fromjson?' > config.json
-          
-          # Verify JSON is valid
-          if ! jq empty config.json; then
-            echo "❌ Invalid JSON configuration"
-            exit 1
-          fi
-          
-          # Base64 encode to preserve special characters
-          CONFIG_B64=$(base64 -w0 config.json)
-          echo "CONFIG_B64=$CONFIG_B64" >> $GITHUB_ENV
-      
+          echo '${{ inputs.config }}' > config.json
+          CONFIG_JSON=$(jq -c . config.json)  # Proper JSON parsing
+          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
     
       - name: Extract Filters from JSON
         id: extract_filters
         run: |
-          # CONFIG_JSON=$(echo '${{ env.CONFIG_JSON }}' | jq -c .)
-          CONFIG_JSON=$(echo "$CONFIG_B64" | base64 -d | jq -c .)
-
+          CONFIG_JSON=$(echo '${{ env.CONFIG_JSON }}' | jq -c .)
           # Extract individual fields
           RELEASE_RULES_FIELDS=$(echo "$CONFIG_JSON" | jq -c '.release_rules_fields // []')
           RELEASE_AUTHOR_OP=$(echo "$CONFIG_JSON" | jq -r '.release_rules_author_op // empty')
