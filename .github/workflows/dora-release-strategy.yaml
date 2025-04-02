@@ -51,15 +51,38 @@ jobs:
       - name: Parse Input Configuration
         id: parse_config
         run: |
-          # Use jq to properly escape and format the input JSON
-          echo '${{ inputs.config }}' | jq -R . | jq -c 'fromjson?' > config.json
-          CONFIG_JSON=$(cat config.json)
-          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
+          # Write input to file using jq without shell interpretation
+          jq -n --arg input '${{ inputs.config }}' '$input' > config.json
+          
+          # Read and validate JSON structure
+          CONFIG_JSON=$(jq -c . config.json)
+          
+          # Handle empty values
+          if [ -z "$CONFIG_JSON" ] || [ "$CONFIG_JSON" = "null" ]; then
+            echo "ERROR: Invalid JSON configuration"
+            exit 1
+          fi
+          
+          # Base64 encode to prevent GITHUB_ENV issues
+          CONFIG_B64=$(echo "$CONFIG_JSON" | base64 | tr -d '\n')
+          echo "CONFIG_B64=$CONFIG_B64" >> $GITHUB_ENV
+      
+      # - name: Extract Filters from JSON
+      #   id: extract_filters
+      #   run: |
+      #     # Decode from base64 to handle special characters
+      #     CONFIG_JSON=$(echo "$CONFIG_B64" | base64 -d)
+          
+      #     # Now process the JSON normally
+      #     RELEASE_RULES_FIELDS=$(echo "$CONFIG_JSON" | jq -c '.release_rules_fields // []')
+      #     # ... rest of your existing processing code ...
+      #     echo "RELEASE_RULES_FIELDS=$RELEASE_RULES_FIELDS" >> "$GITHUB_ENV"
     
       - name: Extract Filters from JSON
         id: extract_filters
         run: |
-          CONFIG_JSON=$(echo '${{ env.CONFIG_JSON }}' | jq -c .)
+          # CONFIG_JSON=$(echo '${{ env.CONFIG_JSON }}' | jq -c .)
+          CONFIG_JSON=$(echo "$CONFIG_B64" | base64 -d)
 
           # Extract individual fields
           RELEASE_RULES_FIELDS=$(echo "$CONFIG_JSON" | jq -c '.release_rules_fields // []')
