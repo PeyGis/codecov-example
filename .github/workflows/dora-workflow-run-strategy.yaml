@@ -189,7 +189,7 @@ jobs:
                         \"status\": \"$STATUS\",
                         \"conclusion\": \"$CONCLUSION\",
                         \"runStartedAt\": \"$CREATED_AT\",
-                        \"createdAt\": \"$COMMIT_HASH\",
+                        \"createdAt\": \"$CREATED_AT\",
                         \"link\": \"$HTML_URL\"
                       },
                       \"relations\": {
