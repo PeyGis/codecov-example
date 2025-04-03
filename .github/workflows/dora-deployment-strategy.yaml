@@ -151,11 +151,11 @@ jobs:
                 # Repository filter - Only check if REPO_VALUES is not empty
                 if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "false" ]]; then
                   case "$REPO_OP" in
-                    "isn't") [[ " $REPO_VALUES " == *" $REPO "* ]] && MATCH=false ;;
-                    "contains") [[ "$REPO_NAME" != *"$REPO_VALUES"* ]] && MATCH=false ;;
-                    "starts with") [[ "$REPO_NAME" != "$REPO_VALUES"* ]] && MATCH=false ;;
-                    "does not contain") [[ "$REPO_NAME" == *"$REPO_VALUES"* ]] && MATCH=false ;;
-                    "does not start with") [[ "$REPO_NAME" == "$REPO_VALUES"* ]] && MATCH=false ;;
+                    "isn't") [[ " $REPO_VALUES " != *" $REPO "* ]] && MATCH=true ;;
+                    "contains") [[ "$REPO_NAME" == *"$REPO_VALUES"* ]] && MATCH=true ;;
+                    "starts with") [[ "$REPO_NAME" == "$REPO_VALUES"* ]] && MATCH=true ;;
+                    "does not contain") [[ "$REPO_NAME" != *"$REPO_VALUES"* ]] && MATCH=true ;;
+                    "does not start with") [[ "$REPO_NAME" != "$REPO_VALUES"* ]] && MATCH=true ;;
                   esac
                 fi
       
