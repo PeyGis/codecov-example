@@ -130,6 +130,17 @@ jobs:
       
                 echo "ENVIRONMENT: $ENVIRONMENT | ENV_VALUES: $ENV_VALUES"
                 echo "REPO_NAME: $REPO_NAME | REPO_VALUES: $REPO_VALUES"
+
+
+
+                for AUTHOR in $ENV_VALUES; do
+                  echo "$AUTHOR"
+                  case "$ENV_OP" in
+                    "equals") [[ "$REPO_NAME" == "$AUTHOR" ]] && MATCH=false && break ;;
+                    "contains") [[ "$REPO_NAME" == "$AUTHOR" ]] && MATCH=false ;;
+                  esac
+                done
+                
       
                 # ENVIRONMENT FILTER (Check ENV_VALUES with ENV_OP)
                 for ENV in "${ENV_VALUES[@]}"; do
@@ -147,6 +158,7 @@ jobs:
                   [[ "$MATCH" == "true" ]] && break
                 done
 
+  
       
                 # Repository filter - Only check if REPO_VALUES is not empty
                 if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "true" ]]; then
