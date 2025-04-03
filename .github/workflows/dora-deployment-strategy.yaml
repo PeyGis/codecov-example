@@ -56,6 +56,7 @@ jobs:
           ENV_OP=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_env_op // empty')
           ENV_VALUES=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_env_str | join(" ")')
           REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_repo_op // empty')
+          echo $ENV_VALUES
 
           if [[ "$REPO_OP" =~ ^(is|isn't)$ ]]; then
             REPO_VALUES=$(echo "$CONFIG_JSON" | jq -r 'if .dep_rules_repository then .dep_rules_repository | map(.identifier) | join(" ") else "" end')
