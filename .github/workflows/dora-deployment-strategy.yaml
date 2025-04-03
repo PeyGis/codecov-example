@@ -136,15 +136,16 @@ jobs:
                 MATCH=true
 
                 # Environment filter
-                if [[ -n "$ENV_VALUES" ]]; then
+                if [[ -n "$ENV_OP" && -n "$ENV_VALUES" ]]; then
                   case "$ENV_OP" in
-                    "equals") [[ " $ENV_VALUES " != *" $ENVIRONMENT "* ]] && MATCH=false ;;
+                    "equals") [[ "$ENV_VALUES" != "$ENVIRONMENT" ]] && MATCH=false ;;
                     "contains") [[ "$ENVIRONMENT" != *"$ENV_VALUES"* ]] && MATCH=false ;;
                     "starts with") [[ "$ENVIRONMENT" != "$ENV_VALUES"* ]] && MATCH=false ;;
                     "does not contain") [[ "$ENVIRONMENT" == *"$ENV_VALUES"* ]] && MATCH=false ;;
                     "does not start with") [[ "$ENVIRONMENT" == "$ENV_VALUES"* ]] && MATCH=false ;;
                   esac
                 fi
+                echo $MATCH
 
                 # Repository filter (only apply if REPO_VALUES is set)
                 if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "true" ]]; then
