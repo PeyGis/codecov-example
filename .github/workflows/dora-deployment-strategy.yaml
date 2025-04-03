@@ -132,18 +132,20 @@ jobs:
                 echo "ENVIRONMENT: $ENVIRONMENT | ENV_VALUES: $ENV_VALUES"
                 echo "REPO_NAME: $REPO_NAME | REPO_VALUES: $REPO_VALUES"
       
-                # Environment filter - Loop through ENV_VALUES
-                if [[ -n "$ENV_OP" && -n "$ENV_VALUES" ]]; then
-                  for ENV in $ENV_VALUES; do
-                    case "$ENV_OP" in
-                      "equals") [[ "$ENV" == "$ENVIRONMENT" ]] && MATCH=true ;;
-                      "contains") [[ "$ENVIRONMENT" == *"$ENV"* ]] && MATCH=true ;;
-                      "starts with") [[ "$ENVIRONMENT" == "$ENV"* ]] && MATCH=true ;;
-                      "does not contain") [[ "$ENVIRONMENT" != *"$ENV"* ]] && MATCH=true ;;
-                      "does not start with") [[ "$ENVIRONMENT" != "$ENV"* ]] && MATCH=true ;;
-                    esac
-                  done
-                fi
+                # ENVIRONMENT FILTER (Check ENV_VALUES with ENV_OP)
+                for ENV in $ENV_VALUES; do
+                  echo "this $ENV"
+                  case "$ENV_OP" in
+                    "equals") [[ "$ENV" == "$ENVIRONMENT" ]] && MATCH=true ;;
+                    "contains") [[ "$ENVIRONMENT" == *"$ENV"* ]] && MATCH=true ;;
+                    "starts with") [[ "$ENVIRONMENT" == "$ENV"* ]] && MATCH=true ;;
+                    "does not contain") [[ "$ENVIRONMENT" != *"$ENV"* ]] && MATCH=true ;;
+                    "does not start with") [[ "$ENVIRONMENT" != "$ENV"* ]] && MATCH=true ;;
+                  esac
+
+                  # Break if matched to avoid unnecessary iterations
+                  [[ "$MATCH" == "true" ]] && break
+                done
       
                 # Repository filter - Only check if REPO_VALUES is not empty
                 if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "true" ]]; then
