@@ -133,8 +133,9 @@ jobs:
                 echo "REPO_NAME: $REPO_NAME | REPO_VALUES: $REPO_VALUES"
       
                 # ENVIRONMENT FILTER (Check ENV_VALUES with ENV_OP)
-                for ENV in $ENV_VALUES; do
-                  echo "this $ENV"
+                for ENV in "${ENV_VALUES[@]}"; do
+                  echo "this $ENV"  # Debugging: Check how ENV is split properly
+                
                   case "$ENV_OP" in
                     "equals") [[ "$ENV" == "$ENVIRONMENT" ]] && MATCH=true ;;
                     "contains") [[ "$ENVIRONMENT" == *"$ENV"* ]] && MATCH=true ;;
@@ -142,10 +143,11 @@ jobs:
                     "does not contain") [[ "$ENVIRONMENT" != *"$ENV"* ]] && MATCH=true ;;
                     "does not start with") [[ "$ENVIRONMENT" != "$ENV"* ]] && MATCH=true ;;
                   esac
-
+                
                   # Break if matched to avoid unnecessary iterations
                   [[ "$MATCH" == "true" ]] && break
                 done
+
       
                 # Repository filter - Only check if REPO_VALUES is not empty
                 if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "true" ]]; then
