@@ -68,9 +68,9 @@ jobs:
 
           echo "DEPLOY_FIELDS=$DEPLOY_FIELDS" >> "$GITHUB_ENV"
           echo "ENV_OP=$ENV_OP" >> "$GITHUB_ENV"
-          echo "ENV_VALUES=${ENV_VALUES@Q}" >> "$GITHUB_ENV"
+          echo "ENV_VALUES=$ENV_VALUES" >> "$GITHUB_ENV"
           echo "REPO_OP=$REPO_OP" >> "$GITHUB_ENV"
-          echo "REPO_VALUES=${REPO_VALUES@Q}" >> "$GITHUB_ENV"
+          echo "REPO_VALUES=$REPO_VALUES" >> "$GITHUB_ENV"
 
       - name: Fetch Repositories
         if: ${{ !contains(env.DEPLOY_FIELDS, 'Repository') && !contains(env.REPO_OP, 'is') }}
