@@ -121,10 +121,13 @@ jobs:
                 [[ "$CREATED_AT" < "$CUTOFF_DATE" ]] && break 2
 
                 MATCH=true
+                NAME=$(echo "$RUN" | jq -r '.name')
+                BRANCH=$(echo "$RUN" | jq -r '.head_branch')
+                AUTHOR=$(echo "$RUN" | jq -r '.actor.login')
+
                 
                 # Branch filter
                 if [[ -n "$BRANCH_OP" ]]; then
-                  BRANCH=$(echo "$RUN" | jq -r '.head_branch')
                   case "$BRANCH_OP" in
                     "equals") [[ "$BRANCH" != "$BRANCH_STR" ]] && MATCH=false ;;
                     "contains") [[ "$BRANCH" != *"$BRANCH_STR"* ]] && MATCH=false ;;
@@ -136,7 +139,6 @@ jobs:
 
                 # Name filter
                 if $MATCH && [[ -n "$NAME_OP" ]]; then
-                  NAME=$(echo "$RUN" | jq -r '.name')
                   case "$NAME_OP" in
                     "equals") [[ "$NAME" != "$NAME_STR" ]] && MATCH=false ;;
                     "contains") [[ "$NAME" != *"$NAME_STR"* ]] && MATCH=false ;;
@@ -148,7 +150,6 @@ jobs:
 
                 # Author filter
                 if $MATCH && [[ -n "$AUTHOR_OP" ]]; then
-                  AUTHOR=$(echo "$RUN" | jq -r '.actor.login')
                   case "$AUTHOR_OP" in
                     "equals") [[ "$AUTHOR" != "$AUTHOR_STR" ]] && MATCH=false ;;
                     "contains") [[ "$AUTHOR" != *"$AUTHOR_STR"* ]] && MATCH=false ;;
