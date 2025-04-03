@@ -143,7 +143,7 @@ jobs:
                 
       
                 # ENVIRONMENT FILTER (Check ENV_VALUES with ENV_OP)
-                for ENV in "${ENV_VALUES[@]}"; do
+                for ENV in "ENV_VALUES"; do
                   echo "this $ENV"  # Debugging: Check how ENV is split properly
                 
                   case "$ENV_OP" in
@@ -157,11 +157,9 @@ jobs:
                   # Break if matched to avoid unnecessary iterations
                   [[ "$MATCH" == "true" ]] && break
                 done
-
-  
       
                 # Repository filter - Only check if REPO_VALUES is not empty
-                if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "true" ]]; then
+                if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "false" ]]; then
                   case "$REPO_OP" in
                     "isn't") [[ " $REPO_VALUES " == *" $REPO "* ]] && MATCH=false ;;
                     "contains") [[ "$REPO_NAME" != *"$REPO_VALUES"* ]] && MATCH=false ;;
