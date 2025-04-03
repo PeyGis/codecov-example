@@ -95,7 +95,7 @@ jobs:
       - name: Set Filtered Repositories
         if: ${{ contains(env.DEPLOY_FIELDS, 'Repository') && contains(env.REPO_OP, 'is') }}
         run: |
-          echo "REPO_LIST=$REPO_STR" >> "$GITHUB_ENV"
+          echo "REPO_LIST=$REPO_VALUES" >> "$GITHUB_ENV"
 
       - name: Fetch Deployments
         id: upsert_deployment_entity
