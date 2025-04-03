@@ -143,7 +143,7 @@ jobs:
                 
       
                 # ENVIRONMENT FILTER (Check ENV_VALUES with ENV_OP)
-                for ENV in "ENV_VALUES"; do
+                for ENV in $ENV_VALUES; do
                   echo "this $ENV"  # Debugging: Check how ENV is split properly
                 
                   case "$ENV_OP" in
