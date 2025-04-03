@@ -104,7 +104,7 @@ jobs:
           REPOS=(${{ env.REPO_LIST }})
           CUTOFF_DATE=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
           BLUEPRINT_ID="githubDeployment"
-          
+      
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
             PAGE=1
@@ -112,56 +112,54 @@ jobs:
               RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/$REPO/deployments?per_page=100&page=$PAGE")
               DEPLOYMENTS=$(echo "$RESPONSE" | jq -c '.[]?')
-              
+              echo $DEPLOYMENTS
               [[ -z "$DEPLOYMENTS" ]] && break
-              
-              # Handle each deployment
+      
               while IFS= read -r DEPLOYMENT; do
-                DEPLOYMENT_ID=$(echo "$DEPLOYMENT" | jq -r '.id')
                 CREATED_AT=$(echo "$DEPLOYMENT" | jq -r '.created_at // empty')
-                ENVIRONMENT=$(echo "$DEPLOYMENT" | jq -r '.environment // empty')
-                REPO_NAME=$(echo "$REPO" | awk -F/ '{print $2}')
-              
-                echo "Processing Deployment ID: $DEPLOYMENT_ID"
+                echo "Processing Deployment ID: $(echo "$DEPLOYMENT" | jq -r '.id')"
                 echo "CREATED_AT: $CREATED_AT | CUTOFF_DATE: $CUTOFF_DATE"
-                echo "ENVIRONMENT: $ENVIRONMENT | ENV_VALUES: $ENV_VALUES"
-                echo "REPO_NAME: $REPO_NAME | REPO_VALUES: $REPO_VALUES"
-
-                # Check if deployment is within the cutoff period
+      
                 if [[ "$CREATED_AT" < "$CUTOFF_DATE" ]]; then
                   echo "Skipping old deployment (before cutoff date)."
-                  continue
+                  break 2
                 fi
-                
-                MATCH=true
-
-                # Environment filter
+      
+                MATCH=false  # Default to false
+                ENVIRONMENT=$(echo "$DEPLOYMENT" | jq -r '.environment // empty')
+                REPO_NAME=$(echo "$REPO" | awk -F/ '{print $2}')
+      
+                echo "ENVIRONMENT: $ENVIRONMENT | ENV_VALUES: $ENV_VALUES"
+                echo "REPO_NAME: $REPO_NAME | REPO_VALUES: $REPO_VALUES"
+      
+                # Environment filter - Loop through ENV_VALUES
                 if [[ -n "$ENV_OP" && -n "$ENV_VALUES" ]]; then
-                  case "$ENV_OP" in
-                    "equals") [[ "$ENV_VALUES" != "$ENVIRONMENT" ]] && MATCH=false ;;
-                    "contains") [[ "$ENVIRONMENT" != *"$ENV_VALUES"* ]] && MATCH=false ;;
-                    "starts with") [[ "$ENVIRONMENT" != "$ENV_VALUES"* ]] && MATCH=false ;;
-                    "does not contain") [[ "$ENVIRONMENT" == *"$ENV_VALUES"* ]] && MATCH=false ;;
-                    "does not start with") [[ "$ENVIRONMENT" == "$ENV_VALUES"* ]] && MATCH=false ;;
-                  esac
+                  for ENV in $ENV_VALUES; do
+                    case "$ENV_OP" in
+                      "equals") [[ "$ENV" == "$ENVIRONMENT" ]] && MATCH=true ;;
+                      "contains") [[ "$ENVIRONMENT" == *"$ENV"* ]] && MATCH=true ;;
+                      "starts with") [[ "$ENVIRONMENT" == "$ENV"* ]] && MATCH=true ;;
+                      "does not contain") [[ "$ENVIRONMENT" != *"$ENV"* ]] && MATCH=true ;;
+                      "does not start with") [[ "$ENVIRONMENT" != "$ENV"* ]] && MATCH=true ;;
+                    esac
+                  done
                 fi
-                echo $MATCH
-
-                # Repository filter (only apply if REPO_VALUES is set)
+      
+                # Repository filter - Only check if REPO_VALUES is not empty
                 if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "true" ]]; then
                   case "$REPO_OP" in
-                    "isn't") [[ " $REPO_VALUES " == *" $REPO_NAME "* ]] && MATCH=false ;;
+                    "isn't") [[ " $REPO_VALUES " == *" $REPO "* ]] && MATCH=false ;;
                     "contains") [[ "$REPO_NAME" != *"$REPO_VALUES"* ]] && MATCH=false ;;
                     "starts with") [[ "$REPO_NAME" != "$REPO_VALUES"* ]] && MATCH=false ;;
                     "does not contain") [[ "$REPO_NAME" == *"$REPO_VALUES"* ]] && MATCH=false ;;
                     "does not start with") [[ "$REPO_NAME" == "$REPO_VALUES"* ]] && MATCH=false ;;
                   esac
                 fi
-
-                
+      
                 echo "MATCH=$MATCH"
-
-                if [[ "$MATCH" == "true" ]]; then
+      
+                if $MATCH; then
+                  DEPLOYMENT_ID=$(echo "$DEPLOYMENT" | jq -r '.id')
                   SHA=$(echo "$DEPLOYMENT" | jq -r '.sha')
                   REF=$(echo "$DEPLOYMENT" | jq -r '.ref')
                   DESCRIPTION=$(echo "$DEPLOYMENT" | jq -r '.description // empty' | sed 's/"/\\"/g')
@@ -171,9 +169,9 @@ jobs:
                   UPDATED_AT=$(echo "$DEPLOYMENT" | jq -r '.updated_at // empty')
                   LINK=$(echo "$DEPLOYMENT" | jq -r '.url')
                   TASK=$(echo "$DEPLOYMENT" | jq -r '.task')
-
+      
                   echo "Sending to Port: Identifier=$REPO_NAME-$DEPLOYMENT_ID, Env=$ENVIRONMENT"
-
+      
                   RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null -X POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
                     -H "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
                     -H "Content-Type: application/json" \
@@ -191,11 +189,10 @@ jobs:
                         \"description\": \"$DESCRIPTION\"
                       }
                     }")
-                  
+      
                   echo "Port API Response Code: $RESPONSE"
                 fi
               done <<< "$DEPLOYMENTS"
-              
               ((PAGE++))
             done
           done
