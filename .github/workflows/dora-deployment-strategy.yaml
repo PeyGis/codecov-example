@@ -146,8 +146,8 @@ jobs:
                   esac
                 fi
 
-                # Repository filter (skip check if REPO_VALUES is empty)
-                if [[ -n "$REPO_VALUES" && "$MATCH" == "true" ]]; then
+                # Repository filter (only apply if REPO_VALUES is set)
+                if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "true" ]]; then
                   case "$REPO_OP" in
                     "isn't") [[ " $REPO_VALUES " == *" $REPO_NAME "* ]] && MATCH=false ;;
                     "contains") [[ "$REPO_NAME" != *"$REPO_VALUES"* ]] && MATCH=false ;;
@@ -156,6 +156,7 @@ jobs:
                     "does not start with") [[ "$REPO_NAME" == "$REPO_VALUES"* ]] && MATCH=false ;;
                   esac
                 fi
+
                 
                 echo "MATCH=$MATCH"
 
