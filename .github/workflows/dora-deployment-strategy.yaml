@@ -117,14 +117,25 @@ jobs:
               echo $DEPLOYMENTS
               [[ -z "$DEPLOYMENTS" ]] && break
 
+              # Handle each deployment
               while IFS= read -r DEPLOYMENT; do
                 CREATED_AT=$(echo "$DEPLOYMENT" | jq -r '.created_at // empty')
-                [[ "$CREATED_AT" < "$CUTOFF_DATE" ]] && break 2
-
+                echo "Processing Deployment ID: $(echo "$DEPLOYMENT" | jq -r '.id')"
+                echo "CREATED_AT: $CREATED_AT | CUTOFF_DATE: $CUTOFF_DATE"
+              
+                if [[ "$CREATED_AT" < "$CUTOFF_DATE" ]]; then
+                  echo "Skipping old deployment (before cutoff date)."
+                  break 2
+                fi
+              
                 MATCH=true
                 ENVIRONMENT=$(echo "$DEPLOYMENT" | jq -r '.environment // empty')
                 REPO_NAME=$(echo "$REPO" | awk -F/ '{print $2}')
-
+                
+                # Debugging environment and repo filters
+                echo "ENVIRONMENT: $ENVIRONMENT | ENV_VALUES: $ENV_VALUES"
+                echo "REPO_NAME: $REPO_NAME | REPO_VALUES: $REPO_VALUES"
+              
                 # Environment filter
                 if [[ -n "$ENV_OP" && -n "$ENV_VALUES" ]]; then
                   case "$ENV_OP" in
@@ -135,7 +146,7 @@ jobs:
                     "does not start with") [[ "$ENVIRONMENT" == "$ENV_VALUES"* ]] && MATCH=false ;;
                   esac
                 fi
-
+              
                 # Repository filter
                 if $MATCH && [[ -n "$REPO_OP" ]]; then
                   case "$REPO_OP" in
@@ -146,7 +157,9 @@ jobs:
                     "does not start with") [[ "$REPO_NAME" == "$REPO_VALUES"* ]] && MATCH=false ;;
                   esac
                 fi
-
+              
+                echo "MATCH=$MATCH"
+                
                 if $MATCH; then
                   DEPLOYMENT_ID=$(echo "$DEPLOYMENT" | jq -r '.id')
                   SHA=$(echo "$DEPLOYMENT" | jq -r '.sha')
@@ -158,8 +171,10 @@ jobs:
                   UPDATED_AT=$(echo "$DEPLOYMENT" | jq -r '.updated_at // empty')
                   LINK=$(echo "$DEPLOYMENT" | jq -r '.url')
                   TASK=$(echo "$DEPLOYMENT" | jq -r '.task')
-
-                  curl -X POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
+              
+                  echo "Sending to Port: Identifier=$REPO_NAME-$DEPLOYMENT_ID, Env=$ENVIRONMENT"
+              
+                  RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null -X POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
                     -H "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
                     -H "Content-Type: application/json" \
                     -d "{
@@ -175,9 +190,12 @@ jobs:
                         \"url\": \"$LINK\",
                         \"description\": \"$DESCRIPTION\"
                       }
-                    }"
+                    }")
+              
+                  echo "Port API Response Code: $RESPONSE"
                 fi
               done <<< "$DEPLOYMENTS"
+
 
               ((PAGE++))
             done
