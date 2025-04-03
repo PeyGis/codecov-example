@@ -103,7 +103,7 @@ jobs:
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
           REPOS=(${{ env.REPO_LIST }})
           CUTOFF_DATE=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
-          BLUEPRINT_ID="githubDeployment"
+          BLUEPRINT_ID="deployment"
       
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
@@ -130,16 +130,6 @@ jobs:
       
                 echo "ENVIRONMENT: $ENVIRONMENT | ENV_VALUES: $ENV_VALUES"
                 echo "REPO_NAME: $REPO_NAME | REPO_VALUES: $REPO_VALUES"
-
-
-
-                for AUTHOR in $ENV_VALUES; do
-                  echo "$AUTHOR"
-                  case "$ENV_OP" in
-                    "equals") [[ "$REPO_NAME" == "$AUTHOR" ]] && MATCH=false && break ;;
-                    "contains") [[ "$REPO_NAME" == "$AUTHOR" ]] && MATCH=false ;;
-                  esac
-                done
                 
       
                 # ENVIRONMENT FILTER (Check ENV_VALUES with ENV_OP)
