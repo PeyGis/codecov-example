@@ -54,21 +54,20 @@ jobs:
           
           DEPLOY_FIELDS=$(echo "$CONFIG_JSON" | jq -c '.dep_rules_fields // []')
           ENV_OP=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_env_op // empty')
-          ENV_VALUES=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_env_str// empty')
+          ENV_VALUES=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_env_str // empty')
           REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_repo_op // empty')
 
-          # Handle repository filter based on operation type
           if [[ "$REPO_OP" =~ ^(is|isn't)$ ]]; then
             REPO_VALUES=$(echo "$CONFIG_JSON" | jq -r 'if .dep_rules_repository then .dep_rules_repository | map(.identifier) | join(" ") else "" end')
           else
             REPO_VALUES=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_repo_str // empty')
           fi
-          
+
           echo "DEPLOY_FIELDS=$DEPLOY_FIELDS" >> "$GITHUB_ENV"
           echo "ENV_OP=$ENV_OP" >> "$GITHUB_ENV"
-          echo "ENV_VALUES=\"$ENV_VALUES\"" >> "$GITHUB_ENV"
+          echo "ENV_VALUES=${ENV_VALUES@Q}" >> "$GITHUB_ENV"
           echo "REPO_OP=$REPO_OP" >> "$GITHUB_ENV"
-          echo "REPO_VALUES=\"$REPO_VALUES\"" >> "$GITHUB_ENV"
+          echo "REPO_VALUES=${REPO_VALUES@Q}" >> "$GITHUB_ENV"
 
       - name: Fetch Repositories
         if: ${{ !contains(env.DEPLOY_FIELDS, 'Repository') && !contains(env.REPO_OP, 'is') }}
