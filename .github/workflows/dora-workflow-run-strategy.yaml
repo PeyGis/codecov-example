@@ -173,13 +173,16 @@ jobs:
                 if $MATCH; then
                   RUN_ID=$(echo "$RUN" | jq -r '.id')
                   STATUS=$(echo "$RUN" | jq -r '.status')
-                  CONCLUSION=$(echo "$RUN" | jq -r '.conclusion // "pending"')
+                  CONCLUSION=$(echo "$RUN" | jq -r '.conclusion // "in_progress"')
                   HTML_URL=$(echo "$RUN" | jq -r '.html_url')
                   COMMIT_HASH=$(echo "$RUN" | jq -r '.head_sha')
-
+                  STARTED_AT=$(echo "$RUN" | jq -r '.run_started_at')
+                  RUN_NUMBER=$(echo "$RUN" | jq -r '.run_number')
+                  RUN_ATTEMPT=$(echo "$RUN" | jq -r '.run_attempt')
+ 
                   echo "######## there is a match ##############"
 
-                  curl -X POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities" \
+                  curl -X POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
                     -H "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
                     -H "Content-Type: application/json" \
                     -d "{
@@ -190,11 +193,11 @@ jobs:
                         \"name\": \"$NAME\",
                         \"status\": \"$STATUS\",
                         \"conclusion\": \"$CONCLUSION\",
-                        \"runStartedAt\": \"$CREATED_AT\",
+                        \"runStartedAt\": \"$STARTED_AT\",
                         \"createdAt\": \"$CREATED_AT\",
-                        \"link\": \"$HTML_URL\"
-                      },
-                      \"relations\": {
+                        \"link\": \"$HTML_URL\",
+                        \"runNumber\": \"$RUN_NUMBER\",
+                        \"runAttempt\": \"$RUN_ATTEMPT\"
                       }
                     }"
                 fi
@@ -204,7 +207,8 @@ jobs:
             done
           done
 
-      - name: Finalize Run
+      - name: Inform entity upsert failure
+        if: steps.upsert_workflow_entity.outcome == 'failure'
         uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.DORA_PORT_CLIENT_ID }}
@@ -212,4 +216,14 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(inputs.port_payload).runId}}
-          logMessage: "Workflow run data collection completed successfully ✅"
+          logMessage: "Failed to report the created entities back to Port ..."
+
+      - name: Inform completion of workflow upsert
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.DORA_PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.DORA_PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).runId}}
+          logMessage: "Fetching of historical workflow run was successful ✅"
