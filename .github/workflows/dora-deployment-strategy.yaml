@@ -1,0 +1,228 @@
+name: Fetch and Send Deployment Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: 'JSON input configuration for fetching Workflow Runs'
+        required: true
+        type: string
+      port_payload:
+        required: true
+        description: Port's payload including context (blueprint, run id, etc.)
+
+jobs:
+  fetch-workflow-runs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Inform execution start
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.DORA_PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.DORA_PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).runId}}
+          logMessage: "Starting workflow run data collection..."
+
+      - name: Fetch Port Access Token
+        id: fetch_port_token
+        run: |
+          PORT_ACCESS_TOKEN=$(curl -s -L 'https://api.getport.io/v1/auth/access_token' \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json' \
+            -d '{
+              "clientId": "${{ secrets.DORA_PORT_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.DORA_PORT_CLIENT_SECRET }}"
+            }' | jq -r '.accessToken')
+          echo "PORT_ACCESS_TOKEN=$PORT_ACCESS_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Parse Input Configuration
+        id: parse_config
+        run: |
+          echo '${{ inputs.config }}' > config.json
+          CONFIG_JSON=$(jq -c . config.json)  # Proper JSON parsing
+          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
+
+      - name: Extract Filters from JSON
+        id: extract_filters
+        run: |
+          CONFIG_JSON=$(echo '${{ env.CONFIG_JSON }}' | jq -c .)
+          
+          WORKFLOW_FIELDS=$(echo "$CONFIG_JSON" | jq -c '.workflow_incl_rules_fields // []')
+          BRANCH_OP=$(echo "$CONFIG_JSON" | jq -r '.workflow_incl_rules_branch_op // empty')
+          BRANCH_STR=$(echo "$CONFIG_JSON" | jq -r '.workflow_incl_rules_branch_str // empty')
+          NAME_OP=$(echo "$CONFIG_JSON" | jq -r '.workflow_incl_rules_name_op // empty')
+          NAME_STR=$(echo "$CONFIG_JSON" | jq -r '.workflow_incl_rules_name_str // empty')
+          AUTHOR_OP=$(echo "$CONFIG_JSON" | jq -r '.workflow_incl_rules_author_op // empty')
+          AUTHOR_STR=$(echo "$CONFIG_JSON" | jq -r '.workflow_incl_rules_author_str // empty')
+          REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.workflow_incl_rules_repo_op // empty')
+          REPO_STR=$(echo "$CONFIG_JSON" | jq -r '.workflow_incl_rules_repo_str // empty')
+
+          echo "WORKFLOW_FIELDS=$WORKFLOW_FIELDS" >> "$GITHUB_ENV"
+          echo "BRANCH_OP=$BRANCH_OP" >> "$GITHUB_ENV"
+          echo "BRANCH_STR=$BRANCH_STR" >> "$GITHUB_ENV"
+          echo "NAME_OP=$NAME_OP" >> "$GITHUB_ENV"
+          echo "NAME_STR=$NAME_STR" >> "$GITHUB_ENV"
+          echo "AUTHOR_OP=$AUTHOR_OP" >> "$GITHUB_ENV"
+          echo "AUTHOR_STR=$AUTHOR_STR" >> "$GITHUB_ENV"
+          echo "REPO_OP=$REPO_OP" >> "$GITHUB_ENV"
+          echo "REPO_STR=$REPO_STR" >> "$GITHUB_ENV"
+
+      - name: Fetch Repositories
+        if: ${{ !contains(env.WORKFLOW_FIELDS, 'Repository name') }}
+        id: fetch_repos
+        run: |
+          GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
+          REPOS=()
+          PAGE=1
+          ORG=${{ github.repository_owner }}
+
+          while :; do
+            RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/users/$ORG/repos?per_page=100&page=$PAGE")
+
+            NEW_REPOS=$(echo "$RESPONSE" | jq -r '.[].full_name')
+            [[ -z "$NEW_REPOS" ]] && break
+            REPOS+=($NEW_REPOS)
+            ((PAGE++))
+          done
+          echo "REPO_LIST=${REPOS[*]}" >> "$GITHUB_ENV"
+
+      - name: Set Filtered Repositories
+        if: ${{ contains(env.WORKFLOW_FIELDS, 'Repository name') }}
+        run: |
+          echo "REPO_LIST=$REPO_STR" >> "$GITHUB_ENV"
+
+      - name: Fetch Workflow Runs
+        id: upsert_workflow_entity
+        run: |
+          GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
+          REPOS=(${{ env.REPO_LIST }})
+          CUTOFF_DATE=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
+          BLUEPRINT_ID="githubWorkflowRun"
+
+          for REPO in "${REPOS[@]}"; do
+            echo "Processing repo: $REPO"
+            PAGE=1
+
+            while true; do
+              RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+                "https://api.github.com/repos/$REPO/actions/runs?per_page=100&page=$PAGE")
+
+              RUNS=$(echo "$RESPONSE" | jq -c '.workflow_runs[]?')
+              [[ -z "$RUNS" ]] && break
+
+              while IFS= read -r RUN; do
+                CREATED_AT=$(echo "$RUN" | jq -r '.created_at?  // empty')
+                [[ "$CREATED_AT" < "$CUTOFF_DATE" ]] && break 2
+
+                MATCH=true
+                NAME=$(echo "$RUN" | jq -r '.name')
+                BRANCH=$(echo "$RUN" | jq -r '.head_branch')
+                AUTHOR=$(echo "$RUN" | jq -r '.actor.login')
+
+                
+                # Branch filter
+                if [[ -n "$BRANCH_OP" ]]; then
+                  case "$BRANCH_OP" in
+                    "equals") [[ "$BRANCH" != "$BRANCH_STR" ]] && MATCH=false ;;
+                    "contains") [[ "$BRANCH" != *"$BRANCH_STR"* ]] && MATCH=false ;;
+                    "starts with") [[ "$BRANCH" != "$BRANCH_STR"* ]] && MATCH=false ;;
+                    "does not contain") [[ "$BRANCH" == *"$BRANCH_STR"* ]] && MATCH=false ;;
+                    "does not start with") [[ "$BRANCH" == "$BRANCH_STR"* ]] && MATCH=false ;;
+                  esac
+                fi
+
+                # Name filter
+                if $MATCH && [[ -n "$NAME_OP" ]]; then
+                  case "$NAME_OP" in
+                    "equals") [[ "$NAME" != "$NAME_STR" ]] && MATCH=false ;;
+                    "contains") [[ "$NAME" != *"$NAME_STR"* ]] && MATCH=false ;;
+                    "starts with") [[ "$NAME" != "$NAME_STR"* ]] && MATCH=false ;;
+                    "does not contain") [[ "$NAME" == *"$NAME_STR"* ]] && MATCH=false ;;
+                    "does not start with") [[ "$NAME" == "$NAME_STR"* ]] && MATCH=false ;;
+                  esac
+                fi
+
+                # Author filter
+                if $MATCH && [[ -n "$AUTHOR_OP" ]]; then
+                  case "$AUTHOR_OP" in
+                    "equals") [[ "$AUTHOR" != "$AUTHOR_STR" ]] && MATCH=false ;;
+                    "contains") [[ "$AUTHOR" != *"$AUTHOR_STR"* ]] && MATCH=false ;;
+                    "starts with") [[ "$AUTHOR" != "$AUTHOR_STR"* ]] && MATCH=false ;;
+                    "does not contain") [[ "$AUTHOR" == *"$AUTHOR_STR"* ]] && MATCH=false ;;
+                    "does not start with") [[ "$AUTHOR" == "$AUTHOR_STR"* ]] && MATCH=false ;;
+                  esac
+                fi
+
+                # Repository filter
+                if $MATCH && [[ -n "$REPO_OP" ]]; then
+                  REPO_NAME=$(echo "$REPO" | awk -F/ '{print $2}')
+                  case "$REPO_OP" in
+                    "equals") [[ "$REPO_NAME" != "$REPO_STR" ]] && MATCH=false ;;
+                    "contains") [[ "$REPO_NAME" != *"$REPO_STR"* ]] && MATCH=false ;;
+                    "starts with") [[ "$REPO_NAME" != "$REPO_STR"* ]] && MATCH=false ;;
+                    "does not contain") [[ "$REPO_NAME" == *"$REPO_STR"* ]] && MATCH=false ;;
+                    "does not start with") [[ "$REPO_NAME" == "$REPO_STR"* ]] && MATCH=false ;;
+                  esac
+                fi
+
+                if $MATCH; then
+                  RUN_ID=$(echo "$RUN" | jq -r '.id')
+                  STATUS=$(echo "$RUN" | jq -r '.status')
+                  CONCLUSION=$(echo "$RUN" | jq -r '.conclusion // "in_progress"')
+                  HTML_URL=$(echo "$RUN" | jq -r '.html_url')
+                  COMMIT_HASH=$(echo "$RUN" | jq -r '.head_sha')
+                  STARTED_AT=$(echo "$RUN" | jq -r '.run_started_at')
+                  RUN_NUMBER=$(echo "$RUN" | jq -r '.run_number')
+                  RUN_ATTEMPT=$(echo "$RUN" | jq -r '.run_attempt')
+ 
+                  curl -X POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities?upsert=true&merge=true&run_id=${{fromJson(inputs.port_payload).runId}}" \
+                    -H "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
+                    -H "Content-Type: application/json" \
+                    -d "{
+                      \"identifier\": \"$RUN_ID\",
+                      \"title\": \"$NAME\",
+                      \"properties\": {
+                        \"triggeringActor\": \"$AUTHOR\",
+                        \"name\": \"$NAME\",
+                        \"status\": \"$STATUS\",
+                        \"conclusion\": \"$CONCLUSION\",
+                        \"runStartedAt\": \"$STARTED_AT\",
+                        \"createdAt\": \"$CREATED_AT\",
+                        \"link\": \"$HTML_URL\",
+                        \"runNumber\": \"$RUN_NUMBER\",
+                        \"runAttempt\": \"$RUN_ATTEMPT\"
+                      }
+                    }"
+                fi
+              done <<< "$RUNS"
+
+              ((PAGE++))
+            done
+          done
+
+      - name: Inform entity upsert failure
+        if: steps.upsert_workflow_entity.outcome == 'failure'
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.DORA_PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.DORA_PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).runId}}
+          logMessage: "Failed to report the created entities back to Port ..."
+
+      - name: Inform completion of workflow upsert
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.DORA_PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.DORA_PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).runId}}
+          logMessage: "Fetching of historical workflow run was successful ✅"
