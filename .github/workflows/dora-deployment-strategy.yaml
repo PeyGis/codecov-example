@@ -54,7 +54,7 @@ jobs:
           
           DEPLOY_FIELDS=$(echo "$CONFIG_JSON" | jq -c '.dep_rules_fields // []')
           ENV_OP=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_env_op // empty')
-          ENV_VALUES=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_env_str[]? // empty' | tr '\n' ' ')
+          ENV_VALUES=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_env_str// empty')
           REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_repo_op // empty')
 
           # Handle repository filter based on operation type
