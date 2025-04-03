@@ -58,10 +58,13 @@ jobs:
           REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_repo_op // empty')
           echo $ENV_VALUES
 
-          if [[ "$REPO_OP" =~ ^(is|isn't)$ ]]; then
+          # Handle repository filter based on operation type
+          if [[ "$REPO_OP" == "is" || "$REPO_OP" == "isn't" ]]; then
+            # Extract repository identifiers when operation is "is" or "isn't"
             REPO_VALUES=$(echo "$CONFIG_JSON" | jq -r 'if .dep_rules_repository then .dep_rules_repository | map(.identifier) | join(" ") else "" end')
           else
-            REPO_VALUES=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_repo_str // empty')
+            # Use dep_rules_repo_str for other operations
+            REPO_VALUES=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_repo_str // ""')
           fi
 
           echo "DEPLOY_FIELDS=$DEPLOY_FIELDS" >> "$GITHUB_ENV"
