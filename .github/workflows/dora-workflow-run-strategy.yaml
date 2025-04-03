@@ -177,6 +177,8 @@ jobs:
                   HTML_URL=$(echo "$RUN" | jq -r '.html_url')
                   COMMIT_HASH=$(echo "$RUN" | jq -r '.head_sha')
 
+                  echo "######## there is a match ##############"
+
                   curl -X POST "https://api.getport.io/v1/blueprints/${BLUEPRINT_ID}/entities" \
                     -H "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
                     -H "Content-Type: application/json" \
