@@ -56,7 +56,6 @@ jobs:
           ENV_OP=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_env_op // empty')
           ENV_VALUES=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_env_str | join(" ")')
           REPO_OP=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_repo_op // empty')
-          echo $ENV_VALUES
 
           # Handle repository filter based on operation type
           if [[ "$REPO_OP" == "is" || "$REPO_OP" == "isn't" ]]; then
@@ -115,6 +114,7 @@ jobs:
                 "https://api.github.com/repos/$REPO/deployments?per_page=100&page=$PAGE")
 
               DEPLOYMENTS=$(echo "$RESPONSE" | jq -c '.[]?')
+              echo $DEPLOYMENTS
               [[ -z "$DEPLOYMENTS" ]] && break
 
               while IFS= read -r DEPLOYMENT; do
