@@ -71,7 +71,7 @@ jobs:
           echo "REPO_VALUES=\"$REPO_VALUES\"" >> "$GITHUB_ENV"
 
       - name: Fetch Repositories
-        if: ${{ !contains(env.DEPLOY_FIELDS, 'Repository') && !(contains(env.REPO_OP, 'is') }}
+        if: ${{ !contains(env.DEPLOY_FIELDS, 'Repository') && !contains(env.REPO_OP, 'is') }}
         id: fetch_repos
         run: |
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
