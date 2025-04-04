@@ -115,14 +115,6 @@ jobs:
           THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
           FILTERED_PRS=""
           BLUEPRINT_ID="githubPullRequest"
-
-          format_date() {
-            if [[ -n "$1" && "$1" != "null" ]]; then
-              date -u -d "$1" +"%Y-%m-%dT%H:%M:%S.%3NZ"
-            else
-              echo "null"
-            fi
-          }
           
           for REPO in "${REPOS[@]}"; do
             echo "Processing repo: $REPO"
