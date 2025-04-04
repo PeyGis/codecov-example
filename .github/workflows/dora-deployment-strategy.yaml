@@ -124,7 +124,7 @@ jobs:
                   break 2
                 fi
       
-                MATCH=false  # Default to false
+                MATCH=true  # Default to true
                 ENVIRONMENT=$(echo "$DEPLOYMENT" | jq -r '.environment // empty')
                 REPO_NAME=$(echo "$REPO" | awk -F/ '{print $2}')
       
@@ -133,32 +133,62 @@ jobs:
                 
       
                 # ENVIRONMENT FILTER (Check ENV_VALUES with ENV_OP)
-                for ENV in $ENV_VALUES; do
-                  echo "this $ENV"  # Debugging: Check how ENV is split properly
+                # for ENV in $ENV_VALUES; do
+                #   echo "this $ENV"  # Debugging: Check how ENV is split properly
                 
-                  case "$ENV_OP" in
-                    "equals") [[ "$ENV" == "$ENVIRONMENT" ]] && MATCH=true ;;
-                    "contains") [[ "$ENVIRONMENT" == *"$ENV"* ]] && MATCH=true ;;
-                    "starts with") [[ "$ENVIRONMENT" == "$ENV"* ]] && MATCH=true ;;
-                    "does not contain") [[ "$ENVIRONMENT" != *"$ENV"* ]] && MATCH=true ;;
-                    "does not start with") [[ "$ENVIRONMENT" != "$ENV"* ]] && MATCH=true ;;
-                  esac
+                #   case "$ENV_OP" in
+                #     "equals") [[ "$ENV" == "$ENVIRONMENT" ]] && MATCH=true ;;
+                #     "contains") [[ "$ENVIRONMENT" == *"$ENV"* ]] && MATCH=true ;;
+                #     "starts with") [[ "$ENVIRONMENT" == "$ENV"* ]] && MATCH=true ;;
+                #     "does not contain") [[ "$ENVIRONMENT" != *"$ENV"* ]] && MATCH=true ;;
+                #     "does not start with") [[ "$ENVIRONMENT" != "$ENV"* ]] && MATCH=true ;;
+                #   esac
                 
-                  # Break if matched to avoid unnecessary iterations
-                  [[ "$MATCH" == "true" ]] && break
-                done
+                #   # Break if matched to avoid unnecessary iterations
+                #   [[ "$MATCH" == "true" ]] && break
+                # done
       
-                # Repository filter - Only check if REPO_VALUES is not empty
-                if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "false" ]]; then
+                # # Repository filter - Only check if REPO_VALUES is not empty
+                # if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "false" ]]; then
+                #   case "$REPO_OP" in
+                #     "isn't") [[ " $REPO_VALUES " != *" $REPO "* ]] && MATCH=true ;;
+                #     "contains") [[ "$REPO_NAME" == *"$REPO_VALUES"* ]] && MATCH=true ;;
+                #     "starts with") [[ "$REPO_NAME" == "$REPO_VALUES"* ]] && MATCH=true ;;
+                #     "does not contain") [[ "$REPO_NAME" != *"$REPO_VALUES"* ]] && MATCH=true ;;
+                #     "does not start with") [[ "$REPO_NAME" != "$REPO_VALUES"* ]] && MATCH=true ;;
+                #   esac
+                # fi
+
+                # ENVIRONMENT FILTER
+                if [[ -n "$ENV_VALUES" && -n "$ENV_OP" ]]; then
+                  ENV_MATCH=false
+                  for ENV in $ENV_VALUES; do
+                    case "$ENV_OP" in
+                      "equals") [[ "$ENVIRONMENT" == "$ENV" ]] && ENV_MATCH=true ;;
+                      "contains") [[ "$ENVIRONMENT" == *"$ENV"* ]] && ENV_MATCH=true ;;
+                      "starts with") [[ "$ENVIRONMENT" == "$ENV"* ]] && ENV_MATCH=true ;;
+                      "does not contain") [[ "$ENVIRONMENT" != *"$ENV"* ]] && ENV_MATCH=true ;;
+                      "does not start with") [[ "$ENVIRONMENT" != "$ENV"* ]] && ENV_MATCH=true ;;
+                    esac
+                    [[ "$ENV_MATCH" == "true" ]] && break
+                  done
+      
+                  if [[ "$ENV_MATCH" != "true" ]]; then
+                    MATCH=false
+                  fi
+                fi
+
+                # REPOSITORY FILTER
+                if [[ -n "$REPO_VALUES" && -n "$REPO_OP" ]]; then
                   case "$REPO_OP" in
-                    "isn't") [[ " $REPO_VALUES " != *" $REPO "* ]] && MATCH=true ;;
-                    "contains") [[ "$REPO_NAME" == *"$REPO_VALUES"* ]] && MATCH=true ;;
-                    "starts with") [[ "$REPO_NAME" == "$REPO_VALUES"* ]] && MATCH=true ;;
-                    "does not contain") [[ "$REPO_NAME" != *"$REPO_VALUES"* ]] && MATCH=true ;;
-                    "does not start with") [[ "$REPO_NAME" != "$REPO_VALUES"* ]] && MATCH=true ;;
+                    "isn't") [[ "$REPO_NAME" == "$REPO_VALUES" ]] && MATCH=false ;;
+                    "contains") [[ "$REPO_NAME" != *"$REPO_VALUES"* ]] && MATCH=false ;;
+                    "starts with") [[ "$REPO_NAME" != "$REPO_VALUES"* ]] && MATCH=false ;;
+                    "does not contain") [[ "$REPO_NAME" == *"$REPO_VALUES"* ]] && MATCH=false ;;
+                    "does not start with") [[ "$REPO_NAME" == "$REPO_VALUES"* ]] && MATCH=false ;;
                   esac
                 fi
-      
+
                 echo "MATCH=$MATCH"
       
                 if $MATCH; then
