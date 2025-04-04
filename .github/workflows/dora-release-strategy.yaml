@@ -105,7 +105,7 @@ jobs:
         run: |
           GH_TOKEN=${{ secrets.DORA_GITHUB_TOKEN }}
           REPOS=(${{ env.REPO_LIST }})
-          THREE_MONTHS_AGO=$(date -d '24 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
+          THREE_MONTHS_AGO=$(date -d '3 months ago' --utc +%Y-%m-%dT%H:%M:%SZ)
           BLUEPRINT_ID="release"
           
           for REPO in "${REPOS[@]}"; do
@@ -129,6 +129,7 @@ jobs:
                 # RELEASE_CREATED_AT=$(echo "$RELEASE" | jq -r '.created_at')
                 RELEASE_CREATED_AT=$(echo "$RELEASE" | jq -r '.created_at? // empty')
                 if [[ "$RELEASE_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
+                  echo "Release is older than 3 months. Skipping"
                   break 2
                 fi
 
