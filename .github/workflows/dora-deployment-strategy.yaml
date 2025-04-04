@@ -117,7 +117,6 @@ jobs:
               while IFS= read -r DEPLOYMENT; do
                 CREATED_AT=$(echo "$DEPLOYMENT" | jq -r '.created_at // empty')
                 echo "Processing Deployment ID: $(echo "$DEPLOYMENT" | jq -r '.id')"
-                echo "CREATED_AT: $CREATED_AT | CUTOFF_DATE: $CUTOFF_DATE"
       
                 if [[ "$CREATED_AT" < "$CUTOFF_DATE" ]]; then
                   echo "Skipping old deployment (before cutoff date)."
@@ -127,37 +126,6 @@ jobs:
                 MATCH=true  # Default to true
                 ENVIRONMENT=$(echo "$DEPLOYMENT" | jq -r '.environment // empty')
                 REPO_NAME=$(echo "$REPO" | awk -F/ '{print $2}')
-      
-                echo "ENVIRONMENT: $ENVIRONMENT | ENV_VALUES: $ENV_VALUES"
-                echo "REPO_NAME: $REPO_NAME | REPO_VALUES: $REPO_VALUES"
-                
-      
-                # ENVIRONMENT FILTER (Check ENV_VALUES with ENV_OP)
-                # for ENV in $ENV_VALUES; do
-                #   echo "this $ENV"  # Debugging: Check how ENV is split properly
-                
-                #   case "$ENV_OP" in
-                #     "equals") [[ "$ENV" == "$ENVIRONMENT" ]] && MATCH=true ;;
-                #     "contains") [[ "$ENVIRONMENT" == *"$ENV"* ]] && MATCH=true ;;
-                #     "starts with") [[ "$ENVIRONMENT" == "$ENV"* ]] && MATCH=true ;;
-                #     "does not contain") [[ "$ENVIRONMENT" != *"$ENV"* ]] && MATCH=true ;;
-                #     "does not start with") [[ "$ENVIRONMENT" != "$ENV"* ]] && MATCH=true ;;
-                #   esac
-                
-                #   # Break if matched to avoid unnecessary iterations
-                #   [[ "$MATCH" == "true" ]] && break
-                # done
-      
-                # # Repository filter - Only check if REPO_VALUES is not empty
-                # if [[ -n "$REPO_OP" && -n "$REPO_VALUES" && "$MATCH" == "false" ]]; then
-                #   case "$REPO_OP" in
-                #     "isn't") [[ " $REPO_VALUES " != *" $REPO "* ]] && MATCH=true ;;
-                #     "contains") [[ "$REPO_NAME" == *"$REPO_VALUES"* ]] && MATCH=true ;;
-                #     "starts with") [[ "$REPO_NAME" == "$REPO_VALUES"* ]] && MATCH=true ;;
-                #     "does not contain") [[ "$REPO_NAME" != *"$REPO_VALUES"* ]] && MATCH=true ;;
-                #     "does not start with") [[ "$REPO_NAME" != "$REPO_VALUES"* ]] && MATCH=true ;;
-                #   esac
-                # fi
 
                 # ENVIRONMENT FILTER
                 if [[ -n "$ENV_VALUES" && -n "$ENV_OP" ]]; then
@@ -188,8 +156,6 @@ jobs:
                     "does not start with") [[ "$REPO_NAME" == "$REPO_VALUES"* ]] && MATCH=false ;;
                   esac
                 fi
-
-                echo "MATCH=$MATCH"
       
                 if $MATCH; then
                   DEPLOYMENT_ID=$(echo "$DEPLOYMENT" | jq -r '.id')
@@ -250,4 +216,4 @@ jobs:
           baseUrl: https://api.getport.io
           operation: PATCH_RUN
           runId: ${{fromJson(inputs.port_payload).runId}}
-          logMessage: "Fetching of historical deployment was successful ✅"
+          logMessage: "Fetching of historical Github deployment has completed ✅"
