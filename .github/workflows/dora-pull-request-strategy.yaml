@@ -45,14 +45,8 @@ jobs:
         id: parse_config
         run: |
           echo '${{ inputs.config }}' > config.json
-          CONFIG_JSON=$(jq -c . config.json)  # Proper JSON parsing
+          CONFIG_JSON=$(jq -c . config.json)
           echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
-          
-      # - name: Parse Input Configuration
-      #   id: parse_config
-      #   run: |
-      #       CONFIG_JSON=$(echo '${{ inputs.config }}' | jq -cR 'fromjson?' | sed 's/[][(){}]//g')
-      #       echo "CONFIG_JSON=${CONFIG_JSON}" >> "$GITHUB_ENV"
       
       - name: Extract Filters from JSON
         id: extract_filters
@@ -160,9 +154,7 @@ jobs:
               fi
 
               for PR in "${PR_LIST[@]}"; do
-                echo "Processing PR ..."
                 PR_CREATED_AT=$(echo "$PR" | jq -r '.created_at')
-                echo "Created at: $PR_CREATED_AT"
 
                 if [[ "$PR_CREATED_AT" < "$THREE_MONTHS_AGO" ]]; then
                   #echo "PR is older than 3 months. Stopping further fetch for $REPO."
@@ -171,15 +163,7 @@ jobs:
 
                 PR_MATCHES_FILTERS=true
 
-                # Apply Filters
-                # PR_STATE=$(echo "$PR" | jq -r '.state')
-                # if [[ "$PR_STATUS_OP" == "is" && "$PR_STATE" != "$PR_STATUS_VALUE" ]]; then
-                #   PR_MATCHES_FILTERS=false
-                # elif [[ "$PR_STATUS_OP" == "isn't" && "$PR_STATE" == "$PR_STATUS_VALUE" ]]; then
-                #   PR_MATCHES_FILTERS=false
-                # fi
-
-                PR_LABELS=($(echo "$PR" | jq -r '.labels[].name'))  # Extract labels as an array
+                PR_LABELS=($(echo "$PR" | jq -r '.labels[].name'))
                 LABEL_MATCH=false
                 
                 for LABEL in "${PR_LABELS[@]}"; do
