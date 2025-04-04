@@ -59,10 +59,8 @@ jobs:
 
           # Handle repository filter based on operation type
           if [[ "$REPO_OP" == "is" || "$REPO_OP" == "isn't" ]]; then
-            # Extract repository identifiers when operation is "is" or "isn't"
             REPO_VALUES=$(echo "$CONFIG_JSON" | jq -r 'if .dep_rules_repository then .dep_rules_repository | map(.identifier) | join(" ") else "" end')
           else
-            # Use dep_rules_repo_str for other operations
             REPO_VALUES=$(echo "$CONFIG_JSON" | jq -r '.dep_rules_repo_str // ""')
           fi
 
@@ -119,7 +117,7 @@ jobs:
                 echo "Processing Deployment ID: $(echo "$DEPLOYMENT" | jq -r '.id')"
       
                 if [[ "$CREATED_AT" < "$CUTOFF_DATE" ]]; then
-                  echo "Skipping old deployment (before cutoff date)."
+                  echo "Skipping old deployment..."
                   break 2
                 fi
       
