@@ -67,27 +67,18 @@ jobs:
 
           echo "🏷️ Creating label: $label_name"
 
-          label_response=$(curl -i -s -w "\n%{http_code}" -X POST "https://api.github.com/repos/${{ github.repository }}/labels" \
-            -H "Authorization: Bearer $GH_TOKEN" \
+          label_response=$(curl -i -X POST "https://api.github.com/repos/${{ github.event.inputs.repository }}/labels" \
+            -H "Authorization: Bearer ${{ secrets.PERSONAL_GH_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -d "{\"name\": \"$label_name\", \"color\": \"0366d6\"}")
 
-          label_body=$(echo "$label_response" | sed '$d')
-          label_status=$(echo "$label_response" | tail -n1)
-
-          echo "📦 Label creation response ($label_status):"
-          echo "$label_body"
-
-          # Ignore errors if label already exists
-          if [ "$label_status" -ne 201 ] && [ "$label_status" -ne 422 ]; then
-            echo "❌ Failed to create label"
-            exit 1
-          fi
+          echo "📦 Label creation response: "
+          echo "$label_response"
 
           echo "🏷️ Applying label to PR $pr_number..."
 
           apply_response=$(curl -i -s -w "\n%{http_code}" -X POST "https://api.github.com/repos/${{ github.event.inputs.repository }}/issues/$pr_number/labels" \
-            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Authorization: Bearer ${{ secrets.PERSONAL_GH_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -d "{\"labels\": [\"$label_name\"]}")
 
