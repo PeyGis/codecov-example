@@ -27,38 +27,88 @@ jobs:
       - name: Get Port Access Token
         id: get_token
         run: |
-          token_response=$(curl -s -X POST https://api.port.io/v1/auth/access_token \
+          echo "🔐 Requesting Port Access Token..."
+          token_response=$(curl -i -s -w "\n%{http_code}" -X POST https://api.port.io/v1/auth/access_token \
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
             -d "{\"clientId\": \"${PORT_CLIENT_ID}\", \"clientSecret\": \"${PORT_CLIENT_SECRET}\"}")
-          
-          echo "PORT_TOKEN=$(echo "$token_response" | jq -r .accessToken)" >> "$GITHUB_ENV"
+
+          body=$(echo "$token_response" | sed '$d')
+          status=$(echo "$token_response" | tail -n1)
+
+          echo "🔍 Port token response ($status):"
+          echo "$body"
+
+          if [ "$status" -ne 200 ]; then
+            echo "❌ Failed to fetch Port token"
+            exit 1
+          fi
+
+          echo "PORT_TOKEN=$(echo "$body" | jq -r .accessToken)" >> "$GITHUB_ENV"
 
       - name: Get Sonar Entity from Port
         id: get_sonar
         run: |
           sonar_entity_id="${{ github.event.inputs.sonarEntity }}"
-          sonar=$(curl -s -X GET "https://api.port.io/v1/blueprints/sonarQubeAnalysis/entities/$sonar_entity_id" \
+          echo "🔍 Fetching Sonar entity $sonar_entity_id"
+
+          sonar_response=$(curl -i -s -w "\n%{http_code}" -X GET "https://api.port.io/v1/blueprints/sonarQubeAnalysis/entities/$sonar_entity_id" \
             -H "Authorization: Bearer $PORT_TOKEN")
 
-          echo "SONAR_ISSUES=$(echo "$sonar" | jq '.entity.properties.newIssues // 0')" >> "$GITHUB_ENV"
-          echo "SONAR_COVERAGE=$(echo "$sonar" | jq '.entity.properties.coverage // 0')" >> "$GITHUB_ENV"
-          echo "SONAR_DUPLICATIONS=$(echo "$sonar" | jq '.entity.properties.duplications // 0')" >> "$GITHUB_ENV"
-          echo "SONAR_BRANCH=$(echo "$sonar" | jq -r '.entity.properties.branch')" >> "$GITHUB_ENV"
+          sonar_body=$(echo "$sonar_response" | sed '$d')
+          sonar_status=$(echo "$sonar_response" | tail -n1)
+
+          echo "📦 Sonar API response ($sonar_status):"
+          echo "$sonar_body"
+
+          if [ "$sonar_status" -ne 200 ]; then
+            echo "❌ Failed to fetch Sonar entity"
+            exit 1
+          fi
+
+          echo "SONAR_ISSUES=$(echo "$sonar_body" | jq '.entity.properties.newIssues // 0')" >> "$GITHUB_ENV"
+          echo "SONAR_COVERAGE=$(echo "$sonar_body" | jq '.entity.properties.coverage // 0')" >> "$GITHUB_ENV"
+          echo "SONAR_DUPLICATIONS=$(echo "$sonar_body" | jq '.entity.properties.duplications // 0')" >> "$GITHUB_ENV"
+          echo "SONAR_BRANCH=$(echo "$sonar_body" | jq -r '.entity.properties.branch')" >> "$GITHUB_ENV"
 
       - name: Add PR Label with Sonar Results
         run: |
           pr_number=$(echo "${{ github.event.inputs.prNumber }}" | grep -o '[0-9]\+$')
           label_name="Sonar: $SONAR_ISSUES issues, $SONAR_COVERAGE% coverage"
 
-          # Create label if it doesn't exist
-          curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/labels" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -d "{\"name\": \"$label_name\", \"color\": \"0366d6\"}" || true
+          echo "🏷️ Creating label: $label_name"
 
-          # Apply label to PR
-          curl -s -X POST "https://api.github.com/repos/${{ github.event.inputs.repository }}/issues/$pr_number/labels" \
+          label_response=$(curl -i -s -w "\n%{http_code}" -X POST "https://api.github.com/repos/${{ github.repository }}/labels" \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            -d "{\"labels\": [\"$label_name\"]}"
+            -d "{\"name\": \"$label_name\", \"color\": \"0366d6\"}")
+
+          label_body=$(echo "$label_response" | sed '$d')
+          label_status=$(echo "$label_response" | tail -n1)
+
+          echo "📦 Label creation response ($label_status):"
+          echo "$label_body"
+
+          # Ignore errors if label already exists
+          if [ "$label_status" -ne 201 ] && [ "$label_status" -ne 422 ]; then
+            echo "❌ Failed to create label"
+            exit 1
+          fi
+
+          echo "🏷️ Applying label to PR $pr_number..."
+
+          apply_response=$(curl -i -s -w "\n%{http_code}" -X POST "https://api.github.com/repos/${{ github.event.inputs.repository }}/issues/$pr_number/labels" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"labels\": [\"$label_name\"]}")
+
+          apply_body=$(echo "$apply_response" | sed '$d')
+          apply_status=$(echo "$apply_response" | tail -n1)
+
+          echo "📦 Apply label response ($apply_status):"
+          echo "$apply_body"
+
+          if [ "$apply_status" -ne 200 ]; then
+            echo "❌ Failed to apply label to PR"
+            exit 1
+          fi
