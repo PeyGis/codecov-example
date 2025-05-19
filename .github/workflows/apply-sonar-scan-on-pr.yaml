@@ -43,25 +43,22 @@ jobs:
           sonar_entity_id="${{ github.event.inputs.sonarEntity }}"
           echo "🔍 Fetching Sonar entity $sonar_entity_id"
 
-          sonar_response=$(curl -i -s -w "\n%{http_code}" -X GET "https://api.port.io/v1/blueprints/sonarQubeAnalysis/entities/$sonar_entity_id" \
+          sonar_response=$(curl -s -X GET "https://api.port.io/v1/blueprints/sonarQubeAnalysis/entities/$sonar_entity_id" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}")
 
-          sonar_body=$(echo "$sonar_response" | sed '$d')
-          sonar_status=$(echo "$sonar_response" | tail -n1)
-
-          echo "📦 Sonar API response ($sonar_status):"
-          echo "$sonar_body"
-
-          if [ "$sonar_status" -ne 200 ]; then
-            echo "❌ Failed to fetch Sonar entity"
-            exit 1
-          fi
-
-          echo "SONAR_ISSUES=$(echo "$sonar_body" | jq '.entity.properties.newIssues // 0')" >> "$GITHUB_ENV"
-          echo "SONAR_COVERAGE=$(echo "$sonar_body" | jq '.entity.properties.coverage // 0')" >> "$GITHUB_ENV"
-          echo "SONAR_DUPLICATIONS=$(echo "$sonar_body" | jq '.entity.properties.duplications // 0')" >> "$GITHUB_ENV"
-          echo "SONAR_BRANCH=$(echo "$sonar_body" | jq -r '.entity.properties.branch')" >> "$GITHUB_ENV"
+          echo "📦 Sonar JSON response:"
+          echo "$sonar_response"
+          
+          SONAR_ISSUES=$(echo "$sonar_response" | jq '.entity.properties.newIssues // 0')
+          SONAR_COVERAGE=$(echo "$sonar_response" | jq '.entity.properties.coverage // 0')
+          SONAR_DUPLICATIONS=$(echo "$sonar_response" | jq '.entity.properties.duplications // 0')
+          SONAR_BRANCH=$(echo "$sonar_response" | jq -r '.entity.properties.branch')
+          
+          echo "SONAR_ISSUES=$SONAR_ISSUES" >> "$GITHUB_ENV"
+          echo "SONAR_COVERAGE=$SONAR_COVERAGE" >> "$GITHUB_ENV"
+          echo "SONAR_DUPLICATIONS=$SONAR_DUPLICATIONS" >> "$GITHUB_ENV"
+          echo "SONAR_BRANCH=$SONAR_BRANCH" >> "$GITHUB_ENV"
 
       - name: Add PR Label with Sonar Results
         run: |
