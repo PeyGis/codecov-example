@@ -1,84 +1,64 @@
+name: Apply Sonar Scan on PR
 
-  name: Comment on PR
+on:
+  workflow_dispatch:
+    inputs:
+      prNumber:
+        required: true
+        type: string
+      repository:
+        required: true
+        type: string
+      sonarEntity:
+        required: true
+        type: string
 
-  on:
-    workflow_dispatch:
-      inputs:
-        comment:
-          description: 'The comment text to post'
-          required: true
-          type: string
-        repo:
-          description: 'Repository in "owner/repo" format (e.g., port-labs/puddle-integrations)'
-          required: true
-          type: string
-        pr:
-          description: 'Pull request number'
-          required: true
-          type: string
+jobs:
+  analyze_sonar:
+    runs-on: ubuntu-latest
+    env:
+      PORT_CLIENT_ID: ${{ secrets.PORT_CLIENT_ID }}
+      PORT_CLIENT_SECRET: ${{ secrets.PORT_CLIENT_SECRET }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  jobs:
-    comment:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Set up Python
-          uses: actions/setup-python@v4
-          with:
-            python-version: '3.x'
+      - name: Get Port Access Token
+        id: get_token
+        run: |
+          token_response=$(curl -s -X POST https://api.port.io/v1/auth/access_token \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "{\"clientId\": \"${PORT_CLIENT_ID}\", \"clientSecret\": \"${PORT_CLIENT_SECRET}\"}")
+          
+          echo "PORT_TOKEN=$(echo "$token_response" | jq -r .accessToken)" >> "$GITHUB_ENV"
 
-        - name: Install Python dependencies
-          run: |
-            pip install PyJWT requests cryptography
+      - name: Get Sonar Entity from Port
+        id: get_sonar
+        run: |
+          sonar_entity_id="${{ github.event.inputs.sonarEntity }}"
+          sonar=$(curl -s -X GET "https://api.port.io/v1/blueprints/sonarQubeAnalysis/entities/$sonar_entity_id" \
+            -H "Authorization: Bearer $PORT_TOKEN")
 
-        - name: Comment on PR using GitHub App
-          env:
-            PEM: ${{ secrets.PORT_GITHUB_APP_PEM }}
-            APP_ID: ${{ secrets.PORT_GITHUB_APP_ID }}
-            INSTALLATION_ID: ${{ secrets.PORT_GITHUB_APP_INSTALLATION_ID }}
-            COMMENT: ${{ github.event.inputs.comment }}
-            REPO: ${{ github.event.inputs.repo }}
-            PR_NUMBER: ${{ github.event.inputs.pr }}
-          run: |
-            python - <<'EOF'
-            import os, time, jwt, requests
+          echo "SONAR_ISSUES=$(echo "$sonar" | jq '.entity.properties.newIssues // 0')" >> "$GITHUB_ENV"
+          echo "SONAR_COVERAGE=$(echo "$sonar" | jq '.entity.properties.coverage // 0')" >> "$GITHUB_ENV"
+          echo "SONAR_DUPLICATIONS=$(echo "$sonar" | jq '.entity.properties.duplications // 0')" >> "$GITHUB_ENV"
+          echo "SONAR_BRANCH=$(echo "$sonar" | jq -r '.entity.properties.branch')" >> "$GITHUB_ENV"
 
-            # Load environment variables
-            pem = os.environ['PEM']
-            app_id = os.environ['APP_ID']
-            installation_id = os.environ['INSTALLATION_ID']
-            comment = os.environ['COMMENT']
-            repo = os.environ['REPO']
-            pr_number = os.environ['PR_NUMBER']
+      - name: Add PR Label with Sonar Results
+        run: |
+          pr_number=$(echo "${{ github.event.inputs.prNumber }}" | grep -o '[0-9]\+$')
+          label_name="Sonar: $SONAR_ISSUES issues, $SONAR_COVERAGE% coverage"
 
-            # Generate JWT (valid for 10 minutes)
-            now = int(time.time())
-            payload = {
-                'iat': now - 60,
-                'exp': now + (10 * 60),
-                'iss': app_id
-            }
-            jwt_token = jwt.encode(payload, pem, algorithm='RS256')
+          # Create label if it doesn't exist
+          curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/labels" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"name\": \"$label_name\", \"color\": \"0366d6\"}" || true
 
-            # Obtain an installation access token
-            headers = {
-                'Authorization': f'Bearer {jwt_token}',
-                'Accept': 'application/vnd.github+json'
-            }
-            token_url = f"https://api.github.com/app/installations/{installation_id}/access_tokens"
-            resp = requests.post(token_url, headers=headers)
-            resp.raise_for_status()
-            token = resp.json()['token']
-
-              # Comment on the pull request (PRs are issues in GitHub API)
-              owner, repo_name = repo.split('/')
-              comment_url = f"https://api.github.com/repos/{owner}/{repo_name}/issues/{pr_number}/comments"
-              comment_payload = {"body": comment}
-              headers = {
-                  'Authorization': f'Bearer {token}',
-                  'Accept': 'application/vnd.github.v3+json',
-                  'Content-Type': 'application/json'
-              }
-              resp = requests.post(comment_url, headers=headers, json=comment_payload)
-              resp.raise_for_status()
-              print("Comment posted successfully!")
-              EOF
+          # Apply label to PR
+          curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/issues/$pr_number/labels" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"labels\": [\"$label_name\"]}"
