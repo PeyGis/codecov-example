@@ -24,27 +24,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get Port Access Token
-        id: get_token
+      - name: Fetch Port Access Token
+        id: fetch_port_token
         run: |
-          echo "🔐 Requesting Port Access Token..."
-          token_response=$(curl -i -s -w "\n%{http_code}" -X POST https://api.port.io/v1/auth/access_token \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/json" \
-            -d "{\"clientId\": \"${PORT_CLIENT_ID}\", \"clientSecret\": \"${PORT_CLIENT_SECRET}\"}")
+          PORT_ACCESS_TOKEN=$(curl -s -L 'https://api.getport.io/v1/auth/access_token' \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json' \
+            -d '{
+              "clientId": "${{ secrets.PORT_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.PORT_CLIENT_SECRET }}"
+            }' | jq -r '.accessToken')
 
-          body=$(echo "$token_response" | sed '$d')
-          status=$(echo "$token_response" | tail -n1)
-
-          echo "🔍 Port token response ($status):"
-          echo "$body"
-
-          if [ "$status" -ne 200 ]; then
-            echo "❌ Failed to fetch Port token"
-            exit 1
-          fi
-
-          echo "PORT_TOKEN=$(echo "$body" | jq -r .accessToken)" >> "$GITHUB_ENV"
+          echo "PORT_ACCESS_TOKEN=$PORT_ACCESS_TOKEN" >> "$GITHUB_ENV"
 
       - name: Get Sonar Entity from Port
         id: get_sonar
@@ -53,7 +44,8 @@ jobs:
           echo "🔍 Fetching Sonar entity $sonar_entity_id"
 
           sonar_response=$(curl -i -s -w "\n%{http_code}" -X GET "https://api.port.io/v1/blueprints/sonarQubeAnalysis/entities/$sonar_entity_id" \
-            -H "Authorization: Bearer $PORT_TOKEN")
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}")
 
           sonar_body=$(echo "$sonar_response" | sed '$d')
           sonar_status=$(echo "$sonar_response" | tail -n1)
