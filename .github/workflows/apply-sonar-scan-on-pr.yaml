@@ -58,7 +58,7 @@ jobs:
             -d "{\"name\": \"$label_name\", \"color\": \"0366d6\"}" || true
 
           # Apply label to PR
-          curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/issues/$pr_number/labels" \
+          curl -s -X POST "https://api.github.com/repos/${{ github.event.inputs.repository }}/issues/$pr_number/labels" \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -d "{\"labels\": [\"$label_name\"]}"
