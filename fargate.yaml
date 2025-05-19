@@ -1,7 +1,7 @@
 name: Fargate
 Resources:
   DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
+    Type: AWS::RDS::DBSubnetGroups
     Properties:
       DBSubnetGroupName: !Sub
         - "${DBName}-db-subnet-group"
