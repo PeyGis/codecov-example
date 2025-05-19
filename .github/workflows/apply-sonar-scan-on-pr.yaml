@@ -120,15 +120,41 @@ jobs:
 
           echo "🏷️ Will apply labels: ${labels_to_apply[*]}"
 
-          # Create labels if they don’t exist
-          for label in "${labels_to_apply[@]}"; do
-            echo "🛠️ Ensuring label exists: $label"
+          # Define a function to assign colors based on grade
+          get_label_color() {
+            label="$1"
+            if [[ "$label" == *" - A" || "$label" == *"75-100%" ]]; then
+              echo "2cbe4e"  # Green
+            elif [[ "$label" == *" - B" || "$label" == *"50-75%" ]]; then
+              echo "a2eeef"  # Light blue
+            elif [[ "$label" == *" - C" || "$label" == *"25-50%" ]]; then
+              echo "fbca04"  # Yellow
+            elif [[ "$label" == *" - D" || "$label" == *"0-25%" ]]; then
+              echo "f66a0a"  # Orange
+            else
+              echo "d73a4a"  # Red for E or anything else
+            fi
+          }
 
+          # Create labels if they don’t exist, using dynamic colors
+          for label in "${labels_to_apply[@]}"; do
+            color=$(get_label_color "$label")
+            echo "🛠️ Ensuring label exists: $label with color #$color"
             curl -s -o /dev/null -w "%{http_code}" -X POST "https://api.github.com/repos/$owner/$repo/labels" \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
-              -d "{\"name\": \"$label\", \"color\": \"0366d6\"}" | grep -qE "201|422"
+              -d "{\"name\": \"$label\", \"color\": \"$color\"}" | grep -qE "201|422"
           done
+
+          # # Create labels if they don’t exist
+          # for label in "${labels_to_apply[@]}"; do
+          #   echo "🛠️ Ensuring label exists: $label"
+
+          #   curl -s -o /dev/null -w "%{http_code}" -X POST "https://api.github.com/repos/$owner/$repo/labels" \
+          #     -H "Authorization: Bearer $GH_TOKEN" \
+          #     -H "Accept: application/vnd.github+json" \
+          #     -d "{\"name\": \"$label\", \"color\": \"0366d6\"}" | grep -qE "201|422"
+          # done
 
           # Apply to PR
           echo "🏷️ Applying labels to PR #$pr_number..."
