@@ -34,7 +34,6 @@ jobs:
               "clientId": "${{ secrets.PORT_CLIENT_ID }}",
               "clientSecret": "${{ secrets.PORT_CLIENT_SECRET }}"
             }' | jq -r '.accessToken')
-
           echo "PORT_ACCESS_TOKEN=$PORT_ACCESS_TOKEN" >> "$GITHUB_ENV"
 
       - name: Get Sonar Entity from Port
@@ -47,49 +46,93 @@ jobs:
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}")
 
-          echo "📦 Sonar JSON response:"
           echo "$sonar_response"
-          
-          SONAR_ISSUES=$(echo "$sonar_response" | jq '.entity.properties.newIssues // 0')
-          SONAR_COVERAGE=$(echo "$sonar_response" | jq '.entity.properties.coverage // 0')
-          SONAR_DUPLICATIONS=$(echo "$sonar_response" | jq '.entity.properties.duplications // 0')
-          SONAR_BRANCH=$(echo "$sonar_response" | jq -r '.entity.properties.branch')
-          
-          echo "SONAR_ISSUES=$SONAR_ISSUES" >> "$GITHUB_ENV"
-          echo "SONAR_COVERAGE=$SONAR_COVERAGE" >> "$GITHUB_ENV"
-          echo "SONAR_DUPLICATIONS=$SONAR_DUPLICATIONS" >> "$GITHUB_ENV"
-          echo "SONAR_BRANCH=$SONAR_BRANCH" >> "$GITHUB_ENV"
 
-      - name: Add PR Label with Sonar Results
+          FIXED_ISSUES=$(echo "$sonar_response" | jq '.entity.properties.fixedIssues // 0')
+          NEW_ISSUES=$(echo "$sonar_response" | jq '.entity.properties.newIssues // 0')
+          COVERAGE=$(echo "$sonar_response" | jq '.entity.properties.coverage // 0')
+          DUPLICATIONS=$(echo "$sonar_response" | jq '.entity.properties.duplications // 0')
+
+          echo "FIXED_ISSUES=$FIXED_ISSUES" >> "$GITHUB_ENV"
+          echo "NEW_ISSUES=$NEW_ISSUES" >> "$GITHUB_ENV"
+          echo "COVERAGE=$COVERAGE" >> "$GITHUB_ENV"
+          echo "DUPLICATIONS=$DUPLICATIONS" >> "$GITHUB_ENV"
+
+      - name: Classify and Apply Sonar Labels
         run: |
+          set -e
+
+          repo="${{ github.event.inputs.repository }}"
+          owner="${{ github.repository_owner }}"
           pr_number=$(echo "${{ github.event.inputs.prNumber }}" | grep -o '[0-9]\+$')
-          label_name="Sonar: $SONAR_ISSUES issues, $SONAR_COVERAGE% coverage"
 
-          echo "🏷️ Creating label: $label_name"
-          echo "REPO OWNER: ${{ github.repository_owner }}"
-
-          label_response=$(curl -i -X POST "https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.inputs.repository }}/labels" \
-            -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            -d "{\"name\": \"$label_name\", \"color\": \"0366d6\"}")
-
-          echo "📦 Label creation response: "
-          echo "$label_response"
-
-          echo "🏷️ Applying label to PR $pr_number..."
-
-          apply_response=$(curl -i -s -w "\n%{http_code}" -X POST "https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.inputs.repository }}/issues/$pr_number/labels" \
-            -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            -d "{\"labels\": [\"$label_name\"]}")
-
-          apply_body=$(echo "$apply_response" | sed '$d')
-          apply_status=$(echo "$apply_response" | tail -n1)
-
-          echo "📦 Apply label response ($apply_status):"
-          echo "$apply_body"
-
-          if [ "$apply_status" -ne 200 ]; then
-            echo "❌ Failed to apply label to PR"
-            exit 1
+          # Classify coverage
+          if (( $(echo "$COVERAGE < 25" | bc -l) )); then
+            coverage_label="Sonar: Coverage - 0-25%"
+          elif (( $(echo "$COVERAGE < 50" | bc -l) )); then
+            coverage_label="Sonar: Coverage - 25-50%"
+          elif (( $(echo "$COVERAGE < 75" | bc -l) )); then
+            coverage_label="Sonar: Coverage - 50-75%"
+          else
+            coverage_label="Sonar: Coverage - 75-100%"
           fi
+
+          # Classify new issues
+          if (( NEW_ISSUES == 0 )); then
+            new_issues_label="Sonar: Issues - A"
+          elif (( NEW_ISSUES <= 5 )); then
+            new_issues_label="Sonar: Issues - B"
+          elif (( NEW_ISSUES <= 10 )); then
+            new_issues_label="Sonar: Issues - C"
+          elif (( NEW_ISSUES <= 20 )); then
+            new_issues_label="Sonar: Issues - D"
+          else
+            new_issues_label="Sonar: Issues - E"
+          fi
+
+          # Classify fixed issues
+          if (( FIXED_ISSUES == 0 )); then
+            fixed_issues_label="Sonar: Fixed - A"
+          elif (( FIXED_ISSUES <= 5 )); then
+            fixed_issues_label="Sonar: Fixed - B"
+          elif (( FIXED_ISSUES <= 10 )); then
+            fixed_issues_label="Sonar: Fixed - C"
+          elif (( FIXED_ISSUES <= 20 )); then
+            fixed_issues_label="Sonar: Fixed - D"
+          else
+            fixed_issues_label="Sonar: Fixed - E"
+          fi
+
+          # Classify duplications
+          if (( $(echo "$DUPLICATIONS < 5" | bc -l) )); then
+            dup_label="Sonar: Duplication - A"
+          elif (( $(echo "$DUPLICATIONS < 10" | bc -l) )); then
+            dup_label="Sonar: Duplication - B"
+          elif (( $(echo "$DUPLICATIONS < 20" | bc -l) )); then
+            dup_label="Sonar: Duplication - C"
+          elif (( $(echo "$DUPLICATIONS < 30" | bc -l) )); then
+            dup_label="Sonar: Duplication - D"
+          else
+            dup_label="Sonar: Duplication - E"
+          fi
+
+          labels_to_apply=("$coverage_label" "$new_issues_label" "$fixed_issues_label" "$dup_label")
+
+          echo "🏷️ Will apply labels: ${labels_to_apply[*]}"
+
+          # Create labels if they don’t exist
+          for label in "${labels_to_apply[@]}"; do
+            echo "🛠️ Ensuring label exists: $label"
+
+            curl -s -o /dev/null -w "%{http_code}" -X POST "https://api.github.com/repos/$owner/$repo/labels" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -d "{\"name\": \"$label\", \"color\": \"0366d6\"}" | grep -qE "201|422"
+          done
+
+          # Apply to PR
+          echo "🏷️ Applying labels to PR #$pr_number..."
+          curl -s -X POST "https://api.github.com/repos/$owner/$repo/issues/$pr_number/labels" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"labels\": [\"${labels_to_apply[0]}\", \"${labels_to_apply[1]}\", \"${labels_to_apply[2]}\", \"${labels_to_apply[3]}\"]}"
