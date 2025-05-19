@@ -19,7 +19,7 @@ jobs:
     env:
       PORT_CLIENT_ID: ${{ secrets.PORT_CLIENT_ID }}
       PORT_CLIENT_SECRET: ${{ secrets.PORT_CLIENT_SECRET }}
-      GH_TOKEN: ${{ secrets.PERSONAL_GH_TOKEN }}
+      GH_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -68,7 +68,7 @@ jobs:
           echo "🏷️ Creating label: $label_name"
 
           label_response=$(curl -i -X POST "https://api.github.com/repos/${{ github.event.inputs.repository }}/labels" \
-            -H "Authorization: Bearer ${{ secrets.PERSONAL_GH_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -d "{\"name\": \"$label_name\", \"color\": \"0366d6\"}")
 
@@ -78,7 +78,7 @@ jobs:
           echo "🏷️ Applying label to PR $pr_number..."
 
           apply_response=$(curl -i -s -w "\n%{http_code}" -X POST "https://api.github.com/repos/${{ github.event.inputs.repository }}/issues/$pr_number/labels" \
-            -H "Authorization: Bearer ${{ secrets.PERSONAL_GH_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -d "{\"labels\": [\"$label_name\"]}")
 
