@@ -12,7 +12,9 @@ on:
       sonarEntity:
         required: true
         type: string
-
+      runID:
+        required: true
+        type: string
 jobs:
   analyze_sonar:
     runs-on: ubuntu-latest
@@ -59,6 +61,7 @@ jobs:
           echo "DUPLICATIONS=$DUPLICATIONS" >> "$GITHUB_ENV"
 
       - name: Classify and Apply Sonar Labels
+        id: apply_pr_label
         run: |
           set -e
 
@@ -162,3 +165,24 @@ jobs:
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -d "{\"labels\": [\"${labels_to_apply[0]}\", \"${labels_to_apply[1]}\", \"${labels_to_apply[2]}\", \"${labels_to_apply[3]}\"]}"
+
+
+      - name: Update Port action status
+        if: always()
+        run: |
+          if [ "${{ steps.apply_pr_label.outcome }}" == "failure" ]; then
+            STATUS="FAILURE"
+          else
+            STATUS="SUCCESS"
+          fi
+      
+          curl -L -X PATCH "https://api.port.io/v1/actions/runs/${{ github.event.inputs.runID }}" \
+          -H "Content-Type: application/json" \
+          -H "Accept: application/json" \
+          -H "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
+          -d '{
+            "status": "'"$STATUS"'",
+            "statusLabel": "'"$STATUS"'",
+            "link": "'"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"'",
+            "summary": "Pull request labeling completed with status: '"$STATUS"'"
+          }'
