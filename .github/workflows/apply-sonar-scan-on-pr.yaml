@@ -19,8 +19,6 @@ jobs:
   analyze_sonar:
     runs-on: ubuntu-latest
     env:
-      PORT_CLIENT_ID: ${{ secrets.PORT_CLIENT_ID }}
-      PORT_CLIENT_SECRET: ${{ secrets.PORT_CLIENT_SECRET }}
       GH_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
     steps:
       - name: Checkout
@@ -148,16 +146,6 @@ jobs:
               -H "Accept: application/vnd.github+json" \
               -d "{\"name\": \"$label\", \"color\": \"$color\"}" | grep -qE "201|422"
           done
-
-          # # Create labels if they don’t exist
-          # for label in "${labels_to_apply[@]}"; do
-          #   echo "🛠️ Ensuring label exists: $label"
-
-          #   curl -s -o /dev/null -w "%{http_code}" -X POST "https://api.github.com/repos/$owner/$repo/labels" \
-          #     -H "Authorization: Bearer $GH_TOKEN" \
-          #     -H "Accept: application/vnd.github+json" \
-          #     -d "{\"name\": \"$label\", \"color\": \"0366d6\"}" | grep -qE "201|422"
-          # done
 
           # Apply to PR
           echo "🏷️ Applying labels to PR #$pr_number..."
