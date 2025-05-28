@@ -72,6 +72,7 @@ jobs:
 
       - name: Merge PR (if mergeable)
         if: env.mergeable_state == 'clean'
+        id: merge_pr
         run: |
           echo "🚀 Merging PR #$pr_number"
           curl -s -X PUT \
@@ -79,3 +80,23 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/${{ github.repository_owner }}/$repo/pulls/$pr_number/merge \
             -d '{"merge_method":"squash"}'
+
+      - name: Update Port action status
+        if: always()
+        run: |
+          if [ "${{ steps.merge_pr.outcome }}" == "failure" ]; then
+            STATUS="FAILURE"
+          else
+            STATUS="SUCCESS"
+          fi
+      
+          curl -L -X PATCH "https://api.port.io/v1/actions/runs/${{ github.event.inputs.runID }}" \
+          -H "Content-Type: application/json" \
+          -H "Accept: application/json" \
+          -H "Authorization: Bearer ${{ env.PORT_ACCESS_TOKEN }}" \
+          -d '{
+            "status": "'"$STATUS"'",
+            "statusLabel": "'"$STATUS"'",
+            "link": "'"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"'",
+            "summary": "Dependabot pull request approval and merge completed with status: '"$STATUS"'"
+          }'
