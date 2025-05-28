@@ -23,6 +23,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fetch Port Access Token
+        id: fetch_port_token
+        run: |
+          PORT_ACCESS_TOKEN=$(curl -s -L 'https://api.getport.io/v1/auth/access_token' \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json' \
+            -d '{
+              "clientId": "${{ secrets.PORT_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.PORT_CLIENT_SECRET }}"
+            }' | jq -r '.accessToken')
+          echo "PORT_ACCESS_TOKEN=$PORT_ACCESS_TOKEN" >> "$GITHUB_ENV"
+          
       - name: Extract PR Info
         id: pr_info
         run: |
