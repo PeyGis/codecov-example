@@ -1,0 +1,81 @@
+name: Auto-Approve & Merge Dependabot PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      prNumber:
+        required: true
+        type: string
+      repository:
+        required: true
+        type: string
+      portContext:
+        required: true
+        type: string
+
+jobs:
+  approve_and_merge:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract PR Info
+        id: pr_info
+        run: |
+          repo="${{ github.event.inputs.repository }}"
+          pr_number=$(echo "${{ github.event.inputs.prNumber }}" | grep -o '[0-9]\+$')
+          echo "repo=$repo" >> $GITHUB_ENV
+          echo "pr_number=$pr_number" >> $GITHUB_ENV
+
+      - name: Approve Pull Request
+        run: |
+          echo "✅ Approving PR #$pr_number in $repo"
+          curl -s -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository_owner }}/$repo/pulls/$pr_number/reviews \
+            -d '{"event":"APPROVE"}'
+
+      - name: Ensure "approved-dependabot" label exists
+        run: |
+          label_name="approved-dependabot"
+          label_color="2cbe4e"
+          echo "🏷️ Ensuring label '$label_name' exists..."
+          curl -s -o /dev/null -w "%{http_code}" -X POST \
+            https://api.github.com/repos/${{ github.repository_owner }}/$repo/labels \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"name\": \"$label_name\", \"color\": \"$label_color\"}" | grep -qE "201|422"
+
+      - name: Apply Label to PR
+        run: |
+          echo "🏷️ Applying label to PR #$pr_number..."
+          curl -s -X POST \
+            https://api.github.com/repos/${{ github.repository_owner }}/$repo/issues/$pr_number/labels \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d '{"labels": ["approved-dependabot"]}'
+
+      - name: Check PR Mergeability
+        id: check_merge
+        run: |
+          echo "🔍 Checking mergeability for PR #$pr_number"
+          pr_response=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/${{ github.repository_owner }}/$repo/pulls/$pr_number)
+          
+          mergeable_state=$(echo "$pr_response" | jq -r '.mergeable_state')
+          echo "mergeable_state=$mergeable_state" >> $GITHUB_ENV
+
+      - name: Merge PR (if mergeable)
+        if: env.mergeable_state == 'clean'
+        run: |
+          echo "🚀 Merging PR #$pr_number"
+          curl -s -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository_owner }}/$repo/pulls/$pr_number/merge \
+            -d '{"merge_method":"squash"}'
