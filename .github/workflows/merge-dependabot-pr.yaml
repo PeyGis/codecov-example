@@ -9,7 +9,7 @@ on:
       repository:
         required: true
         type: string
-      portContext:
+      runID:
         required: true
         type: string
 
