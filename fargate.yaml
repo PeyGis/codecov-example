@@ -24,7 +24,7 @@ Resources:
       SecurityGroupIngress:
         - IpProtocol: "tcp"
           FromPort: 3306
-          ToPort: 3306
+          ToPort: 330
           SourceSecurityGroupId:
             "Fn::ImportValue": !Sub "${NetworkStackName}-BastionSecurityGroupId"
         - IpProtocol: "tcp"
