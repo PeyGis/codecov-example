@@ -44,28 +44,28 @@ jobs:
       - name: Get Incident.io Schema
         id: get_schema
         run: |
-          schema_response=$(curl --location --request GET 'https://api.incident.io/v2/catalog_types/01J5RB95K5NNDE1CRQ7ZQ24YH5' \
+          schema_response=$(curl --location --request GET 'https://api.incident.io/v2/catalog_types/${{ secrets.INCIDENT_IO_CATALOG_TYPE_ID }}' \
           -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
           -H "Content-Type: application/json")
-          echo "$schema_response"
           echo "$schema_response" > schema.json
           
       - name: Map and Send Data to Incident IO
         run: |
           schema=$(jq '.catalog_type.schema.attributes' schema.json)
 
+          # Extract IDs of Incident IO catalog attributes
+          url_id=$(echo "$schema" | jq -r '.[] | select(.name == "url") | .id')
+          readme_id=$(echo "$schema" | jq -r '.[] | select(.name == "readme") | .id')
+          language_id=$(echo "$schema" | jq -r '.[] | select(.name == "language") | .id')
+          lifecycle_id=$(echo "$schema" | jq -r '.[] | select(.name == "lifecycle") | .id')
+          type_id=$(echo "$schema" | jq -r '.[] | select(.name == "type") | .id')
+
+
           # Read entities as a JSON array, and use `jq` to iterate correctly
           entities=$(jq -c '.entities[]' response.json)
 
           # Process each entity
           echo "$entities" | while IFS= read -r entity; do
-            #echo "Entity data to be processed:"
-            #echo "$entity"
-
-            owner_id=$(echo "$schema" | jq -r '.[] | select(.name == "owner") | .id')
-            documentation_id=$(echo "$schema" | jq -r '.[] | select(.name == "documentation") | .id')
-            language_id=$(echo "$schema" | jq -r '.[] | select(.name == "language") | .id')
-            lifecycle_id=$(echo "$schema" | jq -r '.[] | select(.name == "lifecycle") | .id')
 
             name=$(echo "$entity" | jq -r '.title // empty')
             if [ -z "$name" ]; then
@@ -74,32 +74,34 @@ jobs:
             fi
 
             data=$(jq -n \
-              --arg owner_id "$owner_id" \
-              --arg owner "$(echo "$entity" | jq -r '.createdBy // empty')" \
-              --arg documentation_id "$documentation_id" \
-              --arg documentation "$(echo "$entity" | jq -r '.properties.readme // empty')" \
+              --arg url_id "$url_id" \
+              --arg url "$(echo "$entity" | jq -r '.url // empty')" \
+              --arg readme_id "$readme_id" \
+              --arg readme "$(echo "$entity" | jq -r '.properties.readme // empty')" \
               --arg language_id "$language_id" \
               --arg language "$(echo "$entity" | jq -r '.properties.language // empty')" \
               --arg lifecycle_id "$lifecycle_id" \
               --arg lifecycle "$(echo "$entity" | jq -r '.properties.lifecycle // empty')" \
+              --arg type_id "$type_id" \
+              --arg type "$(echo "$entity" | jq -r '.properties.type // empty')" \
               --arg external_id "$(echo "$entity" | jq -r '.identifier')" \
               --arg name "$name" \
-              --arg catalog_type_id "01J5RB95K5NNDE1CRQ7ZQ24YH5" \
+              --arg catalog_type_id "${{ secrets.INCIDENT_IO_CATALOG_TYPE_ID }}" \
               '{
                 "aliases": [],
                 "attribute_values": {
-                  ($owner_id): {"value": {"literal": $owner}},
-                  ($documentation_id): {"value": {"literal": $documentation}},
+                  ($url_id): {"value": {"literal": $url}},
+                  ($readme_id): {"value": {"literal": $readme}},
                   ($language_id): {"value": {"literal": $language}},
-                  ($lifecycle_id): {"value": {"literal": $lifecycle}}
+                  ($lifecycle_id): {"value": {"literal": $lifecycle}},
+                  ($type_id): {"value": {"literal": $type}}
                 },
                 "catalog_type_id": $catalog_type_id,
                 "external_id": $external_id,
                 "name": $name
               }')
 
-            echo "Data to be sent for entity $external_id:"
-            echo "$data"
+            echo "Sending data to API for entity $external_id:"
 
             response=$(curl -i -X POST "https://api.incident.io/v2/catalog_entries" \
               -H "Authorization: Bearer ${{ secrets.INCIDENT_IO_API_KEY }}" \
@@ -107,6 +109,5 @@ jobs:
               -d "$data")
 
             echo "Response from Incident.io API for entity $external_id:"
-            echo "$response"
           done
 
